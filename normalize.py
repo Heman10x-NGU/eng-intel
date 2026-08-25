@@ -23,6 +23,7 @@ class IngestRun:
     coverage_start: str | None
     coverage_end: str | None
     truncated: int = 0
+    degraded: int = 0
     note: str | None = None
 
 
@@ -194,6 +195,7 @@ def rss_entries(company: str, entries: list[dict], truncated: bool = False, note
         notes.append(note)
     if unparsed_dates:
         notes.append(f"{unparsed_dates} rows had unparseable published_at")
+    degraded = 1 if unparsed_dates > 0 or (len(docs) > 0 and not dates_sorted) else 0
     run = IngestRun(
         company=company,
         source_type="blog",
@@ -203,6 +205,7 @@ def rss_entries(company: str, entries: list[dict], truncated: bool = False, note
         coverage_start=dates_sorted[0] if dates_sorted else None,
         coverage_end=dates_sorted[-1] if dates_sorted else None,
         truncated=1 if truncated else 0,
+        degraded=degraded,
         note="; ".join(notes) if notes else None,
     )
     return docs, run
@@ -288,8 +291,8 @@ def write_run(conn, run: IngestRun) -> int:
     cur = conn.execute(
         """
         INSERT INTO ingest_runs (company, source_type, method, fetched_at, n_rows,
-                                 coverage_start, coverage_end, truncated, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 coverage_start, coverage_end, truncated, degraded, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             run.company,
@@ -300,6 +303,7 @@ def write_run(conn, run: IngestRun) -> int:
             run.coverage_start,
             run.coverage_end,
             run.truncated,
+            run.degraded,
             run.note,
         ),
     )

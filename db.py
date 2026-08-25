@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS ingest_runs (
   coverage_start TEXT,
   coverage_end TEXT,
   truncated INTEGER DEFAULT 0,
+  degraded INTEGER DEFAULT 0,
   note TEXT
 );
 
@@ -93,6 +94,10 @@ def init_db(path: str | Path = DB_PATH) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA_SQL)
+    try:
+        conn.execute("ALTER TABLE ingest_runs ADD COLUMN degraded INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
     _create_fts(conn)
     conn.commit()
     return conn

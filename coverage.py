@@ -37,7 +37,7 @@ def check_coverage(
 
     rows = conn.execute(
         """
-        SELECT company, coverage_start, coverage_end, truncated, note, n_rows
+        SELECT company, coverage_start, coverage_end, truncated, degraded, note, n_rows
         FROM ingest_runs
         WHERE source_type = ?
         ORDER BY fetched_at DESC
@@ -70,6 +70,16 @@ def check_coverage(
             continue
         cs = _to_date(row["coverage_start"])
         ce = _to_date(row["coverage_end"])
+        if row["degraded"] or (row["n_rows"] > 0 and not cs):
+            gaps.append(
+                {
+                    "company": company,
+                    "reason": row["note"] or "ingest degraded: rows lack parseable dates for time windows",
+                    "degraded": True,
+                    "exclude_from_time_rank": True,
+                }
+            )
+            continue
         if cs:
             starts.append(cs)
         if ce:

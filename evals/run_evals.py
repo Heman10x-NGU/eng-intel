@@ -16,6 +16,57 @@ from execute import execute
 from plan import build_plan
 
 
+def _rendered_ask(conn, question: str):
+    from app import render_answer
+
+    plan = build_plan(question)
+    result = execute(conn, plan)
+    answer, _guard = render_answer(result)
+    return answer, result
+
+
+def _check_expect_rendered(conn, question: str, expect_rendered: dict) -> list[str]:
+    errs: list[str] = []
+    answer, result = _rendered_ask(conn, question)
+    citations = result.citations
+
+    if expect_rendered.get("non_empty") and not answer.strip():
+        errs.append("rendered answer empty")
+    if expect_rendered.get("no_n_removed") and "[n removed]" in answer.lower():
+        errs.append("answer contains [n removed]")
+    if expect_rendered.get("no_traceback") and "Traceback" in answer:
+        errs.append("answer contains Traceback")
+    if expect_rendered.get("no_import_error") and "No module named" in answer:
+        errs.append("answer contains No module named")
+
+    if "min_citations" in expect_rendered:
+        want = expect_rendered["min_citations"]
+        if len(citations) < want:
+            errs.append(f"citations {len(citations)} < {want}")
+
+    if "max_citations" in expect_rendered:
+        want = expect_rendered["max_citations"]
+        if len(citations) > want:
+            errs.append(f"citations {len(citations)} > {want}")
+
+    for needle in expect_rendered.get("answer_contains", []):
+        if needle not in answer:
+            errs.append(f"answer missing {needle!r}")
+
+    for needle in expect_rendered.get("answer_not_contains", []):
+        if needle in answer:
+            errs.append(f"answer contains forbidden {needle!r}")
+
+    if "min_ranking_nonzero" in expect_rendered:
+        ranking = result.aggregates.get("ranking", {})
+        nonzero = [c for c, n in ranking.items() if n > 0]
+        want = expect_rendered["min_ranking_nonzero"]
+        if len(nonzero) < want:
+            errs.append(f"ranking has {len(nonzero)} non-zero companies, want {want}")
+
+    return errs
+
+
 def _match_plan(actual: dict, expected: dict) -> list[str]:
     errors = []
     for k, v in expected.items():
@@ -62,6 +113,16 @@ def _check_expect_result(conn, expect_result: dict, plan, result) -> list[str]:
         if n != expect_result["count"]:
             errs.append(f"count: expected {expect_result['count']}, got {n}")
 
+    if "count_min" in expect_result:
+        n = result.aggregates.get("count", len(result.rows))
+        if n < expect_result["count_min"]:
+            errs.append(f"count {n} < min {expect_result['count_min']}")
+
+    if "showing" in expect_result:
+        shown = result.aggregates.get("showing", len(result.rows))
+        if shown != expect_result["showing"]:
+            errs.append(f"showing: expected {expect_result['showing']}, got {shown}")
+
     if expect_result.get("all_rows_department"):
         dept = expect_result["all_rows_department"]
         for row in result.rows:
@@ -94,6 +155,8 @@ def _check_expect_result(conn, expect_result: dict, plan, result) -> list[str]:
 
 def main() -> int:
     cases = yaml.safe_load(Path(__file__).with_name("queries.yaml").read_text())
+    graded = yaml.safe_load(Path(__file__).with_name("graded_render.yaml").read_text())
+    cases = cases + graded
     passed = 0
     rows = []
     with get_conn() as conn:
@@ -101,17 +164,22 @@ def main() -> int:
             errs: list[str] = []
             expect = case.get("expect", {})
             expect_result = case.get("expect_result", {})
+            expect_rendered = case.get("expect_rendered", {})
             result = None
             plan = None
 
             if "q" in case:
                 plan = build_plan(case["q"])
-                errs.extend(_match_plan(plan.to_dict(), case.get("expect_plan", {})))
+                if case.get("expect_plan"):
+                    errs.extend(_match_plan(plan.to_dict(), case.get("expect_plan", {})))
                 if expect.get("refuses"):
                     if plan.op != "refuse":
                         errs.append("expected refuse")
                 if expect_result or any(k in expect for k in ("total_min", "n_min", "n_max")):
                     result = execute(conn, plan)
+
+            if expect_rendered:
+                errs.extend(_check_expect_rendered(conn, case["q"], expect_rendered))
 
             if expect_result:
                 if result is None and "q" in case:

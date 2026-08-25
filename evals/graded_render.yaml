@@ -1,0 +1,57 @@
+# Six graded demo queries — assert rendered answer text (via render_answer), not executor-only.
+- id: graded_q1
+  q: How many job postings across these companies mention Rust?
+  expect_rendered:
+    non_empty: true
+    no_n_removed: true
+    no_traceback: true
+    no_import_error: true
+
+- id: graded_q2
+  q: Which company has shipped the most blog posts about databases in the last 6 months?
+  expect_rendered:
+    non_empty: true
+    no_n_removed: true
+    no_traceback: true
+    no_import_error: true
+
+- id: graded_q3
+  q: Show me remote engineering roles at Supabase.
+  expect_rendered:
+    non_empty: true
+    no_n_removed: true
+    no_traceback: true
+    no_import_error: true
+
+- id: graded_q4
+  q: Compare how Vercel and Supabase talk about their database products.
+  expect_rendered:
+    non_empty: true
+    no_n_removed: true
+    no_traceback: true
+    no_import_error: true
+    min_citations: 5
+    answer_contains:
+      - "extractive comparison"
+
+- id: graded_q5
+  q: Which of these companies is most active on GitHub right now?
+  expect_rendered:
+    non_empty: true
+    no_n_removed: true
+    no_traceback: true
+    no_import_error: true
+    answer_not_contains:
+      - "No repo activity rows"
+    min_ranking_nonzero: 3
+
+- id: graded_q6
+  q: What new content has come out across these companies in the last 30 days?
+  expect_rendered:
+    non_empty: true
+    no_n_removed: true
+    no_traceback: true
+    no_import_error: true
+    max_citations: 20
+    answer_contains:
+      - "showing 20"

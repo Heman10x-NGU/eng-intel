@@ -83,7 +83,8 @@
     op: timeline
     source_types: [job, blog, repo_activity]
   expect_result:
-    timeline_min_companies: [vercel, supabase, hashicorp]
+    showing: 20
+    count_min: 100
 
 - id: data_quality_blog_dates
   q: "How many blog posts are in the corpus?"

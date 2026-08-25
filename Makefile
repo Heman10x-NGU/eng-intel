@@ -19,6 +19,9 @@ ingest:
 eval:
 	$(PYTHON) evals/run_evals.py
 
+test:
+	PYTHONPATH=. $(PYTHON) -m unittest discover -s tests -v
+
 browser-oracle:
 	$(PYTHON) oracle.py
 

@@ -102,13 +102,21 @@ def _fetch_base(conn: sqlite3.Connection, plan: QueryPlan, since: date | None, u
     return rows, sql, params
 
 
-def _apply_structured_filters(rows: list[sqlite3.Row], filters: dict) -> list[sqlite3.Row]:
+def _apply_structured_filters(rows: list[sqlite3.Row], filters: dict) -> tuple[list[sqlite3.Row], list[str]]:
     out = list(rows)
-    if filters.get("remote") is True:
-        out = [r for r in out if r["is_remote"] == 1]
+    notes: list[str] = []
     if dept := filters.get("department"):
         out = [r for r in out if (r["department"] or "") == dept]
-    return out
+    if filters.get("remote") is True:
+        before = len(out)
+        out = [r for r in out if r["is_remote"] == 1]
+        excluded = before - len(out)
+        if excluded > 0:
+            scope = filters.get("department") or "matching"
+            notes.append(
+                f"{excluded} {scope} role(s) excluded: remote filter requires 'remote' in location text."
+            )
+    return out, notes
 
 
 def _rows_to_dicts(rows: list[sqlite3.Row]) -> list[dict]:
@@ -197,7 +205,7 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
             until = cov.comparable_until
 
     rows, sql, params = _fetch_base(conn, plan, since, until)
-    rows = _apply_structured_filters(rows, plan.filters)
+    rows, filter_notes = _apply_structured_filters(rows, plan.filters)
 
     if plan.keyword:
         if SEARCH_MODE == "lexical":
@@ -240,8 +248,6 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         answer = f"{' '.join(parts)} matching documents."
         if plan.keyword:
             answer = f"{total} postings mention {plan.keyword} (" + ", ".join(f"{c} {n}" for c, n in sorted(by_company.items())) + ")."
-        if coverage_note:
-            answer += " HashiCorp jobs are not in the corpus (see coverage panel)."
 
     elif plan.op == "list":
         total_count = len(rows)
@@ -249,8 +255,8 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         rows = display_rows
         aggregates = {"count": total_count}
         answer = f"{total_count} roles found."
-        if plan.companies == ["supabase"] and plan.filters.get("remote") and plan.filters.get("department") == "Engineering":
-            answer += " (Remote = location contains 'remote'; 3 AMER-titled Engineering roles excluded.)"
+        if filter_notes:
+            answer += f" ({'; '.join(filter_notes)})"
         if coverage_note:
             answer += f" {coverage_note}"
 

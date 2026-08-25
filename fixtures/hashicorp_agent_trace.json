@@ -1,0 +1,8 @@
+{
+  "status": "skipped",
+  "reason": "ANTHROPIC_API_KEY not set",
+  "tasks": [
+    "Start at vercel.com, find engineering roles, extract JSON",
+    "Find HashiCorp current open job postings"
+  ]
+}

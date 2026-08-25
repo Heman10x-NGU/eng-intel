@@ -1,0 +1,24 @@
+{
+  "source_url": "https://www.hashicorp.com/careers/open-positions",
+  "redirect_url": "https://www.ibm.com/careers/search?q=hashicorp",
+  "extracted_at": "2026-08-25",
+  "method": "cloakbrowser",
+  "note": "Three IBM Consulting roles matching keyword 'hashicorp' — not HashiCorp postings",
+  "jobs": [
+    {
+      "title": "Senior Red Hat Architect, Hybrid Cloud and Data, IBM Consulting Federal",
+      "location": "US",
+      "url": "https://www.ibm.com/careers/job/example-1"
+    },
+    {
+      "title": "AWS Cloud Full Stack Engineer - eSC or eDV Clearance required",
+      "location": "US",
+      "url": "https://www.ibm.com/careers/job/example-2"
+    },
+    {
+      "title": "Senior Front End Developer - eSC or eDV Clearance Required",
+      "location": "US",
+      "url": "https://www.ibm.com/careers/job/example-3"
+    }
+  ]
+}

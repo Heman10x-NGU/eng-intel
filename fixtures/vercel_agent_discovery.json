@@ -1,0 +1,4 @@
+{
+  "status": "skipped",
+  "reason": "ANTHROPIC_API_KEY not set — optional agent tier not run live"
+}

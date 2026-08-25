@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import calendar
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 import feedparser
@@ -13,10 +15,25 @@ from db import init_db
 from normalize import rss_entries, write_documents, write_run
 
 
+def _struct_to_iso(time_struct) -> str | None:
+    if not time_struct:
+        return None
+    return (
+        datetime.fromtimestamp(calendar.timegm(time_struct), tz=timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+    )
+
+
 def _entry_date(entry) -> str | None:
+    for parsed_attr in ("published_parsed", "updated_parsed", "created_parsed"):
+        iso = _struct_to_iso(getattr(entry, parsed_attr, None))
+        if iso:
+            return iso
     for attr in ("published", "updated", "created"):
-        if getattr(entry, attr, None):
-            return getattr(entry, attr)
+        raw = getattr(entry, attr, None)
+        if raw:
+            return raw
     return None
 
 

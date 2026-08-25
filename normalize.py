@@ -6,6 +6,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from html import unescape
 from typing import Any
 
@@ -50,15 +51,18 @@ def _strip_html(html: str | None) -> str:
 def _parse_date(value: str | None) -> str | None:
     if not value:
         return None
+    dt: datetime | None = None
     try:
-        if value.endswith("Z"):
-            value = value[:-1] + "+00:00"
-        dt = datetime.fromisoformat(value)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat()
+        iso = value[:-1] + "+00:00" if value.endswith("Z") else value
+        dt = datetime.fromisoformat(iso)
     except (ValueError, TypeError):
-        return None
+        try:
+            dt = parsedate_to_datetime(value)
+        except (ValueError, TypeError, IndexError):
+            return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def derive_is_remote(location: str | None, raw_remote: Any = None) -> bool | None:
@@ -164,8 +168,12 @@ def ashby_jobs(company: str, payload: dict) -> tuple[list[Document], IngestRun]:
 def rss_entries(company: str, entries: list[dict], truncated: bool = False, note: str | None = None) -> tuple[list[Document], IngestRun]:
     docs: list[Document] = []
     dates: list[str] = []
+    unparsed_dates = 0
     for entry in entries:
-        pub = _parse_date(entry.get("published_at"))
+        raw_date = entry.get("published_at")
+        pub = _parse_date(raw_date)
+        if raw_date and not pub:
+            unparsed_dates += 1
         if pub:
             dates.append(pub)
         body = entry.get("summary") or entry.get("body") or ""
@@ -181,6 +189,11 @@ def rss_entries(company: str, entries: list[dict], truncated: bool = False, note
             )
         )
     dates_sorted = sorted(dates) if dates else []
+    notes: list[str] = []
+    if note:
+        notes.append(note)
+    if unparsed_dates:
+        notes.append(f"{unparsed_dates} rows had unparseable published_at")
     run = IngestRun(
         company=company,
         source_type="blog",
@@ -190,7 +203,7 @@ def rss_entries(company: str, entries: list[dict], truncated: bool = False, note
         coverage_start=dates_sorted[0] if dates_sorted else None,
         coverage_end=dates_sorted[-1] if dates_sorted else None,
         truncated=1 if truncated else 0,
-        note=note,
+        note="; ".join(notes) if notes else None,
     )
     return docs, run
 

@@ -1,0 +1,143 @@
+- id: q1_spec
+  q: "How many job postings across these companies mention Rust?"
+  expect_plan:
+    op: count
+    source_types: [job]
+    keyword: rust
+  expect:
+    total_min: 5
+
+- id: q1_paraphrase
+  q: "count the roles that need rust"
+  expect_plan:
+    op: count
+    source_types: [job]
+    keyword: rust
+
+- id: q1_swap_python
+  q: "How many job postings mention Python?"
+  expect_plan:
+    op: count
+    source_types: [job]
+    keyword: python
+
+- id: q2_spec
+  q: "Which company has shipped the most blog posts about databases in the last 6 months?"
+  expect_plan:
+    op: rank
+    source_types: [blog]
+    topic: databases
+    group_by: company
+
+- id: q2_paraphrase
+  q: "who blogs most about databases lately"
+  expect_plan:
+    op: rank
+    source_types: [blog]
+    topic: databases
+
+- id: q3_spec
+  q: "Show me remote engineering roles at Supabase."
+  expect_plan:
+    op: list
+    companies: [supabase]
+    source_types: [job]
+    filters:
+      remote: true
+      department: Engineering
+  expect:
+    n_min: 15
+    n_max: 22
+
+- id: q3_paraphrase
+  q: "list remote eng jobs at supabase"
+  expect_plan:
+    op: list
+    companies: [supabase]
+    source_types: [job]
+
+- id: q4_spec
+  q: "Compare how Vercel and Supabase talk about their database products."
+  expect_plan:
+    op: compare
+    companies: [vercel, supabase]
+    topic: databases
+
+- id: q5_spec
+  q: "Which of these companies is most active on GitHub right now?"
+  expect_plan:
+    op: rank
+    source_types: [repo_activity]
+    metric: events_7d
+    group_by: company
+
+- id: q6_spec
+  q: "What new content has come out across these companies in the last 30 days?"
+  expect_plan:
+    op: timeline
+    source_types: [job, blog, repo_activity]
+
+- id: q6_paraphrase
+  q: "what's new in the last 30 days across companies"
+  expect_plan:
+    op: timeline
+
+- id: q_compositional
+  q: "how many remote Rust jobs at Supabase in the last 30 days"
+  expect_plan:
+    op: count
+    companies: [supabase]
+    source_types: [job]
+    keyword: rust
+    filters:
+      remote: true
+
+- id: q_compositional_2
+  q: "count vercel blog posts about databases"
+  expect_plan:
+    op: count
+    companies: [vercel]
+    source_types: [blog]
+    topic: databases
+
+- id: q_refuse_revenue
+  q: "What is Vercel's revenue?"
+  expect_plan:
+    op: refuse
+
+- id: q_refuse_stock
+  q: "What's HashiCorp stock price?"
+  expect_plan:
+    op: refuse
+
+- id: q_list_vercel_jobs
+  q: "show open jobs at vercel"
+  expect_plan:
+    op: list
+    companies: [vercel]
+    source_types: [job]
+
+- id: q_rank_github_paraphrase
+  q: "who ships most on github this week"
+  expect_plan:
+    op: rank
+    source_types: [repo_activity]
+
+- id: q_count_supabase
+  q: "how many jobs does supabase have"
+  expect_plan:
+    op: count
+    companies: [supabase]
+    source_types: [job]
+
+- id: q_timeline_blogs
+  q: "recent blog posts in last 30 days"
+  expect_plan:
+    op: timeline
+    source_types: [blog]
+
+- id: q_compare_paraphrase
+  q: "vercel vs supabase database messaging"
+  expect_plan:
+    op: compare
+    topic: databases

@@ -13,6 +13,7 @@ from typing import Any
 from config import COMPANIES, TOPIC_KEYWORDS
 from coverage import check_coverage
 from db import FTS5_AVAILABLE
+from normalize import _strip_html
 from plan import QueryPlan
 
 SEARCH_MODE = "lexical"  # vector path intentionally unimplemented
@@ -122,20 +123,38 @@ def _citations_from_rows(rows: list[sqlite3.Row]) -> list[dict]:
     ]
 
 
+def _extractive_compare(chunks: list[dict]) -> str:
+    lines = [
+        f"No model configured — extractive comparison from {len(chunks)} retrieved posts."
+    ]
+    for i, c in enumerate(chunks):
+        excerpt = _strip_html(c.get("body_text"))[:200].strip()
+        lines.append(f"[{i}] {c['company']}: {c['title']} — {excerpt}")
+    return "\n".join(lines)
+
+
 def _synthesize_compare(chunks: list[dict]) -> str:
     if not chunks:
         return "No retrieved content to compare."
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        lines = []
-        for i, c in enumerate(chunks[:6]):
-            lines.append(f"[{i}] {c['company']}: {c['title']} — {(c.get('body_text') or '')[:200]}")
-        return "Retrieved excerpts (no API key for synthesis):\n" + "\n".join(lines)
+        return _extractive_compare(chunks)
     try:
         import anthropic
+    except ImportError:
+        return _extractive_compare(chunks)
 
+    try:
         client = anthropic.Anthropic(api_key=api_key)
-        payload = [{"i": i, "company": c["company"], "title": c["title"], "text": (c.get("body_text") or "")[:800]} for i, c in enumerate(chunks)]
+        payload = [
+            {
+                "i": i,
+                "company": c["company"],
+                "title": c["title"],
+                "text": (c.get("body_text") or "")[:800],
+            }
+            for i, c in enumerate(chunks)
+        ]
         prompt = (
             "Compare how the companies discuss database products using ONLY these chunks. "
             "Cite sources as [index]. Do not invent URLs or numbers.\n\n"
@@ -148,8 +167,9 @@ def _synthesize_compare(chunks: list[dict]) -> str:
             messages=[{"role": "user", "content": prompt}],
         )
         return msg.content[0].text
-    except Exception as exc:
-        return f"Compare synthesis failed: {exc}"
+    except Exception:
+        fallback = _extractive_compare(chunks)
+        return f"{fallback}\n\n(Model synthesis unavailable; extractive comparison shown above.)"
 
 
 def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:

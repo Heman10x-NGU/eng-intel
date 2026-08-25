@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from db import get_conn
 from execute import execute
-from guard import apply_guard
+from guard import apply_guard, chunk_grounding_tokens
 from plan import build_plan
 
 
@@ -21,8 +21,14 @@ def render_answer(result) -> tuple[str, dict]:
     """Combine executor template text with guarded model text — mirrors POST /ask."""
     guard_info = {"stripped_urls": [], "stripped_numbers": []}
     if result.model_text:
+        extra_nums, extra_urls = chunk_grounding_tokens(result.rows)
         guarded = apply_guard(
-            result.model_text, result.citations, result.rows, result.aggregates
+            result.model_text,
+            result.citations,
+            result.rows,
+            result.aggregates,
+            extra_allowed_numbers=extra_nums,
+            extra_allowed_urls=extra_urls,
         )
         guard_info = {
             "stripped_urls": guarded.stripped_urls,

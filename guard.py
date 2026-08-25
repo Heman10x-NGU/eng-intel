@@ -33,9 +33,34 @@ def _collect_allowed_numbers(rows: list[dict], aggregates: dict) -> set[str]:
     return nums
 
 
-def apply_guard(answer: str, citations: list[dict], rows: list[dict], aggregates: dict) -> GuardResult:
+def chunk_grounding_tokens(rows: list[dict]) -> tuple[set[str], set[str]]:
+    """Numbers and URLs present in retrieved rows — allowed in model synthesis."""
+    nums: set[str] = set()
+    urls: set[str] = set()
+    for row in rows:
+        blob = f"{row.get('title') or ''} {row.get('body_text') or ''}"
+        for m in re.finditer(r"\b\d+\b", blob):
+            nums.add(m.group())
+        for m in re.finditer(r"https?://[^\s\])>\"']+", blob):
+            urls.add(m.group())
+    return nums, urls
+
+
+def apply_guard(
+    answer: str,
+    citations: list[dict],
+    rows: list[dict],
+    aggregates: dict,
+    *,
+    extra_allowed_numbers: set[str] | None = None,
+    extra_allowed_urls: set[str] | None = None,
+) -> GuardResult:
     allowed_urls = _collect_allowed_urls(citations)
+    if extra_allowed_urls:
+        allowed_urls |= extra_allowed_urls
     allowed_nums = _collect_allowed_numbers(rows, aggregates)
+    if extra_allowed_numbers:
+        allowed_nums |= extra_allowed_numbers
 
     stripped_urls: list[str] = []
     stripped_numbers: list[str] = []
@@ -52,6 +77,9 @@ def apply_guard(answer: str, citations: list[dict], rows: list[dict], aggregates
     def num_repl(m: re.Match) -> str:
         num = m.group(0)
         if num in allowed_nums:
+            return num
+        start, end = m.start(), m.end()
+        if start > 0 and end < len(text) and text[start - 1] == "[" and text[end] == "]":
             return num
         stripped_numbers.append(num)
         return "[n removed]"

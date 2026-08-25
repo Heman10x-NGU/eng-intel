@@ -27,6 +27,32 @@ INPUT_HIT_PER_M = 0.007
 OUTPUT_PER_M = 0.66
 
 
+def _patch_deepseek_no_think() -> None:
+    """DeepSeek V4 defaults to thinking mode, which rejects browser-use tool_choice."""
+    from browser_use.llm.deepseek.chat import ChatDeepSeek
+
+    if getattr(ChatDeepSeek, "_eng_intel_no_think", False):
+        return
+
+    original_client = ChatDeepSeek._client
+
+    def _client_with_no_think(self):
+        client = original_client(self)
+        original_create = client.chat.completions.create
+
+        async def create(*args, **kwargs):
+            extra = dict(kwargs.pop("extra_body", None) or {})
+            extra.setdefault("thinking", {"type": "disabled"})
+            kwargs["extra_body"] = extra
+            return await original_create(*args, **kwargs)
+
+        client.chat.completions.create = create
+        return client
+
+    ChatDeepSeek._client = _client_with_no_think
+    ChatDeepSeek._eng_intel_no_think = True
+
+
 def _write(payload: dict) -> None:
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(payload, indent=2))
@@ -78,8 +104,9 @@ def _parse_jobs_from_text(text: str) -> list[dict]:
 def _history_trace(history) -> str:
     parts: list[str] = []
     for step in history.history:
-        if step.model_output and step.model_output.current_state:
-            parts.append(f"step: {step.model_output.current_state}")
+        mo = step.model_output
+        if mo is not None:
+            parts.append(str(mo))
         for result in step.result or []:
             if result.extracted_content:
                 parts.append(result.extracted_content)
@@ -109,7 +136,8 @@ async def _run() -> dict:
     from browser_use import Agent
     from browser_use.llm import ChatDeepSeek
 
-    llm = ChatDeepSeek(model="deepseek-v4-flash", api_key=os.environ["DEEPSEEK_API_KEY"])
+    _patch_deepseek_no_think()
+    llm = ChatDeepSeek(model="deepseek-v4-flash", api_key=os.environ["DEEPSEEK_API_KEY"], temperature=0)
     agent = Agent(
         task=TASK,
         llm=llm,

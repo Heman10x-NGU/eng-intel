@@ -4,8 +4,11 @@
     op: count
     source_types: [job]
     keyword: rust
-  expect:
-    total_min: 5
+  expect_result:
+    total: 5
+    by_company:
+      vercel: 1
+      supabase: 4
 
 - id: q1_paraphrase
   q: "count the roles that need rust"
@@ -28,6 +31,9 @@
     source_types: [blog]
     topic: databases
     group_by: company
+  expect_result:
+    ranking_includes: [vercel, supabase]
+    ranking_or_caveat: [hashicorp]
 
 - id: q2_paraphrase
   q: "who blogs most about databases lately"
@@ -76,6 +82,16 @@
   expect_plan:
     op: timeline
     source_types: [job, blog, repo_activity]
+  expect_result:
+    timeline_min_companies: [vercel, supabase, hashicorp]
+
+- id: data_quality_blog_dates
+  q: "How many blog posts are in the corpus?"
+  expect_plan:
+    op: count
+    source_types: [blog]
+  expect_result:
+    blog_null_dates: 0
 
 - id: q6_paraphrase
   q: "what's new in the last 30 days across companies"

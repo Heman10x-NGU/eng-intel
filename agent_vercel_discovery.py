@@ -14,6 +14,7 @@ from urllib.parse import urljoin
 
 REPO = Path(__file__).resolve().parent
 OUT_PATH = REPO / "fixtures" / "vercel_agent_discovery.json"
+DEFAULT_MODEL = os.environ.get("AGENT_MODEL", "deepseek-v4-flash")
 
 TASK = (
     "Start at vercel.com. Find where the company lists its open engineering roles, "
@@ -162,7 +163,7 @@ async def _run() -> dict:
     from browser_use.llm import ChatDeepSeek
 
     _patch_deepseek_no_think()
-    llm = ChatDeepSeek(model="deepseek-v4-flash", api_key=os.environ["DEEPSEEK_API_KEY"], temperature=0)
+    llm = ChatDeepSeek(model=DEFAULT_MODEL, api_key=os.environ["DEEPSEEK_API_KEY"], temperature=0)
     agent = Agent(
         task=TASK,
         llm=llm,
@@ -190,6 +191,7 @@ async def _run() -> dict:
         )
     return {
         "status": "completed" if jobs else "failed",
+        "model": DEFAULT_MODEL,
         "jobs": jobs,
         "steps": history.number_of_steps(),
         "trace": trace,

@@ -66,6 +66,37 @@ def _word_boundary(text: str | None, keyword: str) -> bool:
     return bool(re.search(rf"\b{re.escape(keyword)}\b", text, re.IGNORECASE))
 
 
+SEARCH_MODE = "lexical"  # vector path intentionally unimplemented
+
+TITLE_TOPIC_WEIGHT = 4.0
+BODY_TOPIC_WEIGHT = 1.0
+
+
+def _topic_keyword_hits(title: str | None, body: str | None, topic: str) -> tuple[set[str], float]:
+    """Distinct keyword hits; title weighted above body."""
+    keywords = TOPIC_KEYWORDS.get(topic, [])
+    title_text = title or ""
+    body_text = _strip_html(body) or ""
+    body_low = body_text.lower()
+    distinct: set[str] = set()
+    score = 0.0
+    for kw in keywords:
+        pat = rf"\b{re.escape(kw)}\b"
+        in_title = bool(re.search(pat, title_text, re.IGNORECASE))
+        in_body = bool(re.search(pat, body_low, re.IGNORECASE))
+        if in_title or in_body:
+            distinct.add(kw.lower())
+            if in_title:
+                score += TITLE_TOPIC_WEIGHT
+            elif in_body:
+                score += BODY_TOPIC_WEIGHT
+    if not distinct:
+        return distinct, 0.0
+    length = max(len(title_text) + len(body_text), 1)
+    normalized = score * len(distinct) / max(length / 500.0, 1.0)
+    return distinct, normalized
+
+
 def _topic_match(text: str | None, topic: str) -> bool:
     if not text:
         return False
@@ -74,6 +105,35 @@ def _topic_match(text: str | None, topic: str) -> bool:
         if re.search(rf"\b{re.escape(kw)}\b", low):
             return True
     return False
+
+
+def _score_row_for_topic(row: sqlite3.Row, topic: str) -> float:
+    distinct, score = _topic_keyword_hits(row["title"], row["body_text"], topic)
+    return score if distinct else 0.0
+
+
+def _retrieve_compare_topic(
+    rows: list[sqlite3.Row], plan: QueryPlan, topic: str
+) -> list[tuple[float, sqlite3.Row]]:
+    companies = plan.companies or sorted({r["company"] for r in rows})
+    if not companies:
+        return []
+
+    by_company: dict[str, list[tuple[float, sqlite3.Row]]] = {c: [] for c in companies}
+    for row in rows:
+        score = _score_row_for_topic(row, topic)
+        if score > 0 and row["company"] in by_company:
+            by_company[row["company"]].append((score, row))
+
+    per_company = max(1, plan.limit // len(companies))
+    extra = plan.limit - per_company * len(companies)
+    selected: list[tuple[float, sqlite3.Row]] = []
+    for i, company in enumerate(companies):
+        ranked = sorted(by_company[company], key=lambda x: x[0], reverse=True)
+        take = per_company + (1 if i < extra else 0)
+        selected.extend(ranked[:take])
+    selected.sort(key=lambda x: x[0], reverse=True)
+    return selected
 
 
 def _filter_rows_keyword(rows: list[sqlite3.Row], keyword: str) -> list[sqlite3.Row]:
@@ -132,12 +192,22 @@ def _rows_to_dicts(rows: list[sqlite3.Row]) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def _citations_from_rows(rows: list[sqlite3.Row]) -> list[dict]:
-    return [
-        {"title": r["title"], "url": r["url"], "company": r["company"], "source_type": r["source_type"]}
-        for r in rows
-        if r["url"]
-    ]
+def _citations_from_rows(rows: list[sqlite3.Row] | list[dict]) -> list[dict]:
+    cites: list[dict] = []
+    for r in rows:
+        row = dict(r) if not isinstance(r, dict) else r
+        if not row.get("url"):
+            continue
+        cite: dict[str, Any] = {
+            "title": row["title"],
+            "url": row["url"],
+            "company": row["company"],
+            "source_type": row["source_type"],
+        }
+        if row.get("retrieval_score") is not None:
+            cite["retrieval_score"] = row["retrieval_score"]
+        cites.append(cite)
+    return cites
 
 
 def _extractive_compare(chunks: list[dict]) -> str:
@@ -239,11 +309,12 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         else:
             raise NotImplementedError("vector search not implemented")
 
-    if plan.topic:
+    if plan.topic and plan.op != "compare":
         rows = _filter_rows_topic(rows, plan.topic)
 
     aggregates: dict[str, Any] = {}
     model_text = ""
+    chunks: list[dict] = []
 
     if plan.op == "count":
         by_company: dict[str, int] = {}
@@ -303,9 +374,17 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
                 answer += f" Caveat: {coverage_note}"
 
     elif plan.op == "compare":
-        chunk_rows = rows[: plan.limit]
-        chunks = _rows_to_dicts(chunk_rows)
-        rows = chunk_rows
+        if plan.topic:
+            scored = _retrieve_compare_topic(rows, plan, plan.topic)
+            chunks = []
+            for score, row in scored:
+                d = dict(row)
+                d["retrieval_score"] = round(score, 3)
+                chunks.append(d)
+        else:
+            chunk_rows = rows[: plan.limit]
+            chunks = _rows_to_dicts(chunk_rows)
+        rows = chunks
         aggregates = {"chunks": len(chunks)}
         answer = ""
         model_text = _synthesize_compare(chunks)
@@ -323,10 +402,11 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         answer = "Unsupported operation."
         model_text = ""
 
+    out_rows = chunks if plan.op == "compare" else _rows_to_dicts(rows)
     return ExecuteResult(
         answer=answer,
-        rows=_rows_to_dicts(rows),
-        citations=_citations_from_rows(rows),
+        rows=out_rows,
+        citations=_citations_from_rows(out_rows),
         aggregates=aggregates,
         coverage_note=coverage_note,
         sql=sql,

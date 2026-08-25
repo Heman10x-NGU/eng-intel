@@ -68,6 +68,8 @@
     op: compare
     companies: [vercel, supabase]
     topic: databases
+  expect_result:
+    q4_retrieval_quality: true
 
 - id: q5_spec
   q: "Which of these companies is most active on GitHub right now?"

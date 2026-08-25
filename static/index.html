@@ -161,7 +161,8 @@
         const li = document.createElement('li');
         const a = document.createElement('a');
         a.href = c.url; a.target = '_blank'; a.rel = 'noopener';
-        a.textContent = (c.company || '') + ': ' + (c.title || c.url);
+        const score = c.retrieval_score != null ? ` [score ${c.retrieval_score}]` : '';
+        a.textContent = (c.company || '') + ': ' + (c.title || c.url) + score;
         li.appendChild(a);
         cit.appendChild(li);
       });

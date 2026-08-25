@@ -1,22 +1,19 @@
-"""browser-use discovery — optional ingest-only, never imported by app."""
+"""browser-use discovery launcher — subprocess only, never imports browser-use."""
 
 from __future__ import annotations
 
-import asyncio
 import json
 import os
-import re
-import time
+import subprocess
+import sys
 from pathlib import Path
-from urllib.parse import urljoin
 
 OUT_PATH = Path("fixtures/vercel_agent_discovery.json")
-
-TASK = (
-    "Start at vercel.com. Find where the company lists its open engineering roles, "
-    "navigate to that listing, and extract every job you can see as JSON with fields: "
-    "title, location, department, url. Return only the JSON array."
+REPO = Path(__file__).resolve().parent
+DEFAULT_BROWSER_USE_PYTHON = Path(
+    "/Users/heman10x/Downloads/claude_dev/oss-repos/scraping-and-trends/browser-use/browser-use/.venv/bin/python"
 )
+AGENT_TIMEOUT_S = 90 * 60
 
 
 def _write_trace(payload: dict) -> dict:
@@ -25,67 +22,8 @@ def _write_trace(payload: dict) -> dict:
     return payload
 
 
-def _normalize_job_url(url: str | None) -> str | None:
-    if not url:
-        return None
-    url = url.strip()
-    if url.startswith("/"):
-        url = urljoin("https://job-boards.greenhouse.io", url)
-    if url.startswith("http://"):
-        url = "https://" + url[7:]
-    return url
-
-
-def _parse_jobs_from_text(text: str) -> list[dict]:
-    if not text:
-        return []
-    match = re.search(r"\[[\s\S]*\]", text)
-    if not match:
-        return []
-    try:
-        raw = json.loads(match.group())
-    except json.JSONDecodeError:
-        return []
-    if not isinstance(raw, list):
-        return []
-    jobs: list[dict] = []
-    for item in raw:
-        if not isinstance(item, dict):
-            continue
-        jobs.append(
-            {
-                "title": item.get("title"),
-                "location": item.get("location"),
-                "department": item.get("department"),
-                "url": _normalize_job_url(item.get("url")),
-            }
-        )
-    return [j for j in jobs if j.get("url")]
-
-
-async def _run_vercel_agent() -> dict:
-    from browser_use import Agent
-    from browser_use.llm import ChatDeepSeek
-
-    llm = ChatDeepSeek(model="deepseek-v4-flash", api_key=os.environ["DEEPSEEK_API_KEY"])
-    agent = Agent(
-        task=TASK,
-        llm=llm,
-        use_vision=False,
-        max_actions_per_step=3,
-        calculate_cost=True,
-    )
-    history = await agent.run(max_steps=25)
-    usage = history.usage
-    cost = float(usage.total_cost) if usage else 0.0
-    trace = history.final_result() or ""
-    return {
-        "jobs": _parse_jobs_from_text(trace),
-        "wall_clock_s": 0.0,
-        "cost_usd": cost,
-        "steps": history.number_of_steps(),
-        "trace": trace,
-    }
+def _browser_use_python() -> Path:
+    return Path(os.environ.get("BROWSER_USE_PYTHON", str(DEFAULT_BROWSER_USE_PYTHON)))
 
 
 def run_discovery_tasks() -> dict:
@@ -102,41 +40,73 @@ def run_discovery_tasks() -> dict:
             }
         )
 
-    try:
-        import browser_use  # noqa: F401
-    except ImportError as exc:
+    py = _browser_use_python()
+    if not py.is_file():
         return _write_trace(
             {
                 "status": "skipped",
-                "reason": "browser-use package not installed in this Python environment",
-                "detail": str(exc),
+                "reason": "browser-use venv python not found",
+                "detail": str(py),
                 "jobs": [],
                 "wall_clock_s": 0.0,
                 "cost_usd": 0.0,
                 "steps": 0,
-                "trace": "Run via browser-use venv subprocess (see ingest_jobs_agent launcher).",
+                "trace": f"Expected browser-use interpreter at {py}",
             }
         )
 
-    t0 = time.time()
+    worker = REPO / "agent_vercel_discovery.py"
+    env = os.environ.copy()
     try:
-        result = asyncio.run(_run_vercel_agent())
-        result["wall_clock_s"] = round(time.time() - t0, 2)
-        result["status"] = "completed"
-        return _write_trace(result)
+        proc = subprocess.run(
+            [str(py), str(worker)],
+            cwd=str(REPO),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=AGENT_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        return _write_trace(
+            {
+                "status": "failed",
+                "reason": "agent run timed out after 90 minutes",
+                "jobs": [],
+                "wall_clock_s": float(AGENT_TIMEOUT_S),
+                "cost_usd": 0.0,
+                "steps": 0,
+                "trace": "Hard cap 90 minutes reached before agent finished.",
+            }
+        )
     except Exception as exc:
         return _write_trace(
             {
                 "status": "failed",
-                "reason": "agent run crashed",
+                "reason": "agent subprocess failed to launch",
                 "error": str(exc),
                 "jobs": [],
-                "wall_clock_s": round(time.time() - t0, 2),
+                "wall_clock_s": 0.0,
                 "cost_usd": 0.0,
                 "steps": 0,
                 "trace": str(exc),
             }
         )
+
+    if OUT_PATH.exists():
+        return json.loads(OUT_PATH.read_text())
+
+    return _write_trace(
+        {
+            "status": "failed",
+            "reason": "agent run crashed",
+            "error": proc.stderr.strip() or proc.stdout.strip() or f"exit {proc.returncode}",
+            "jobs": [],
+            "wall_clock_s": 0.0,
+            "cost_usd": 0.0,
+            "steps": 0,
+            "trace": (proc.stdout + "\n" + proc.stderr)[-15000:],
+        }
+    )
 
 
 if __name__ == "__main__":
@@ -144,3 +114,4 @@ if __name__ == "__main__":
 
     load_dotenv()
     print(json.dumps(run_discovery_tasks(), indent=2))
+    sys.exit(0)

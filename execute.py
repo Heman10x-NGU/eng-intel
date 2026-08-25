@@ -219,7 +219,7 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         if plan.keyword:
             answer = f"{total} postings mention {plan.keyword} (" + ", ".join(f"{c} {n}" for c, n in sorted(by_company.items())) + ")."
         if coverage_note:
-            answer += f" Coverage note: {coverage_note}"
+            answer += " HashiCorp jobs are not in the corpus (see coverage panel)."
 
     elif plan.op == "list":
         total_count = len(rows)

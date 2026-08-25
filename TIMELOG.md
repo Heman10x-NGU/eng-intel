@@ -41,4 +41,15 @@
 | Rendered-answer evals | 25m | `test(evals): assert rendered answers for six graded queries` |
 | Docs + UI example buttons | 20m | `docs: sync README and design after V3 fixes` |
 
-**V3 fixes: ~3h · Grand total: ~16h 25m**
+**V3 fixes: ~3h · Grand total after V3: ~16h 25m**
+
+## V4 retrieval fixes (2026-08-26)
+
+| Fix | Time | Commit |
+|---|---|---|
+| V4-1 vendor names out of topic keywords | 20m | `fix(config): drop vendor names from database topic keywords` |
+| V4-2 scored compare retrieval | 45m | `feat(compare): score topic matches and retrieve top-k per company` |
+| V4-3 timeline caveat → panel | 10m | `fix(execute): point timeline answers to coverage panel for caveats` |
+| Docs | 15m | `docs: sync README and design after V4 retrieval fixes` |
+
+**V4 fixes: ~1h 30m · Grand total: ~17h 55m**

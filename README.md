@@ -95,18 +95,19 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 
 - Playwright selector scrape: **50/87 recall** — Greenhouse embed SSR cap, not bad scrolling (diagnosed).
 - GitHub activity uses one API page per org, not full 7-day pagination.
+- **Topic classification is keyword-based** (`config.TOPIC_KEYWORDS`), not embeddings or a model. The failure mode is matching **company identity** instead of subject — e.g. when `supabase` was in the `databases` keyword list, every Supabase post matched (100%). Vendor names are now forbidden in topic sets, and `data_quality_topic_identity` fails if any company hits 100% on a topic. Compare retrieval uses scored lexical ranking (title-weighted, length-normalized, top-k per company) — vectors would be the next step, not a missing foundation.
 - Compare answers without `ANTHROPIC_API_KEY` (or without `anthropic` installed) return a labeled extractive bullet list from retrieved posts — not synthesized prose.
 - browser-use agent tier not run live (skip trace only).
 
 ## Another week
 
 - Paginate GitHub events properly; backfill HashiCorp blog beyond RSS cap.
-- browser-use discovery with API key; embeddings for `compare` ranking only.
+- browser-use discovery with API key; embeddings only if lexical scoring stops being enough at ~50 companies.
 
 ## Evals
 
-`make eval` — **27** cases: plan routing, `expect_result` answer checks (Q1 totals, Q2 company presence, Q3 count=18, zero null blog dates), and **`expect_rendered`** on all six graded demo queries (no `[n removed]`, no exception strings, Q4 ≥5 citations, Q5 non-zero GitHub ranking, Q6 respects `limit: 20`).
+`make eval` — **28** cases: plan routing, `expect_result` (including topic-identity and Q4 retrieval quality), and **`expect_rendered`** on all six graded demo queries.
 
 ## Time spent
 
-~14 hours including V2 and V3 review fixes (see `TIMELOG.md`).
+~17 hours including V2–V4 review fixes (see `TIMELOG.md`).

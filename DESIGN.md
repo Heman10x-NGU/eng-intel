@@ -37,7 +37,16 @@ The UI always shows the filled QueryPlan JSON beside the answer.
 
 `expect_plan` asserts routing. `expect_result` asserts executor aggregates. `topic_quality.py` guards topic identity (no 100% company match) and Q4 retrieval (≥70% title keywords, ≥⅓ per company). `expect_rendered` runs `render_answer` on all six graded queries.
 
-## Scale: 50 companies × 500 documents
+## Browser ingest tiers (V5)
+
+| Tier | Implementation | Isolation |
+|---|---|---|
+| Solid | `ingest_jobs_browser.py --vercel` (Playwright selectors) | eng-intel `.venv` |
+| Solid+ | CloakBrowser HashiCorp probe | eng-intel `.venv` |
+| Stronger | `--a11y`: `aria_snapshot()` + DeepSeek JSON parse | eng-intel `.venv`, `DEEPSEEK_API_KEY` |
+| Strongest | `ingest_jobs_agent.py` → subprocess `agent_vercel_discovery.py` | browser-use py3.12 venv, never imported by `app.py` |
+
+`make seed` stays offline — no browser-use import on the hot path.
 
 - **Query:** ~25k rows — SQLite + indexes on `(company, source_type, published_at)` and FTS5 stay fine.
 - **Ingest:** breaks first — 50 ATS sources, bot walls, backoff, scheduled workers; coverage ledger becomes essential.

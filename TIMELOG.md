@@ -52,4 +52,16 @@
 | V4-3 timeline caveat → panel | 10m | `fix(execute): point timeline answers to coverage panel for caveats` |
 | Docs | 15m | `docs: sync README and design after V4 retrieval fixes` |
 
-**V4 fixes: ~1h 30m · Grand total: ~17h 55m**
+**V4 fixes: ~1h 30m · Grand total after V4: ~17h 55m**
+
+## V5 browser tiers (2026-08-26)
+
+| Step | Time | Commit |
+|---|---|---|
+| Agent ingest fixes (ChatDeepSeek, asyncio, errors) | 25m | `fix(agent): use ChatDeepSeek and asyncio` |
+| Subprocess isolation | 20m | `feat(agent): run browser-use discovery via isolated subprocess` |
+| a11y tree + DeepSeek | 50m | `feat(browser): add a11y-tree DeepSeek extraction` |
+| Thinking-mode + measured failure | 40m | `fix(agent): disable DeepSeek thinking…` + `fix(agent): record measured failure…` |
+| Docs + oracle table | 25m | `docs: sync README and design after V5 browser tiers` |
+
+**V5 fixes: ~2h 40m · Grand total: ~20h 35m** (stated overrun vs 12h brief cap in README)

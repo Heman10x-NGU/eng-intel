@@ -39,12 +39,14 @@ A recruiter, investor, or engineer tracking these three companies wants one plac
 | QueryPlan IR + single executor | Rules fill slots; LLM only for gaps / compare synthesis |
 | Grounding guard | Strips unbacked URLs/integers from **model synthesis only** (`render_answer` in `app.py`); executor template text is trusted |
 | Playwright selector scrape + accuracy oracle | 50/87 recall (embed cap); **97% field accuracy** — see `docs/PLAYWRIGHT_VERCEL_DIAGNOSIS.md` |
+| a11y tree + DeepSeek extraction | 50/87 recall, **100% field accuracy** on matched URLs — same embed cap as selectors |
+| browser-use agent discovery (DeepSeek) | Measured run: 0/87 recall; schema mismatch trace in `fixtures/vercel_agent_discovery.json` |
 | CloakBrowser path + HashiCorp exclusion | Zero job rows inserted; reason in ledger |
 | Plain HTML UI | Answer · QueryPlan JSON · coverage · citations |
 
 | Stubbed | Notes |
 |---|---|
-| browser-use agent tier | Optional `[agent]` group; trace artifact when no API key |
+| browser-use agent tier | Subprocess via browser-use venv; measured failure trace committed |
 | VLM screenshot extraction | Skipped — README time prioritized |
 | Vector / embeddings search | `search_mode=lexical` only; hook left in executor |
 
@@ -57,7 +59,19 @@ A recruiter, investor, or engineer tracking these three companies wants one plac
 - **Blogs:** RSS; feed depth differs (Vercel 2016→, Supabase 2021→, HashiCorp ~2 months).
 - **GitHub:** org events API (first page); token optional for rate limits.
 
-Browser bonus: measured Playwright vs API on the same 86/87 Vercel board (`artifacts/scrape_accuracy.json`).
+Browser bonus: five methods scored against the same 87-job Greenhouse ground truth (`artifacts/scrape_accuracy.json`).
+
+| Method | Found /87 | Field acc. | Wall clock | Cost | Beats bot wall | Brief tier |
+|---|---|---|---|---|---|---|
+| Greenhouse API | 87 | 1.00 | ~1s | $0 | n/a | baseline |
+| Playwright selectors | 50 | 0.967 | 4.4s | $0 | no | solid |
+| CloakBrowser | n/a (HashiCorp) | — | ~10s | $0 | **yes** | solid+ |
+| a11y tree + DeepSeek | 50 | 1.00 | 83s | ~$0.01 | no | **stronger** |
+| browser-use agent | 0 | 0.00 | 15s | ~$0.004 | no | **strongest** (attempted) |
+
+**Embed cap finding:** both selector and a11y paths stop at **50/87** with the same missed URLs — evidence the cap is structural (Greenhouse SSR embed), not a selector bug. a11y improves field accuracy on matched rows (1.00 vs 0.967) but does not clear recall.
+
+Run: `make browser-oracle` (after `make browser-a11y` and `make browser-agent` with `DEEPSEEK_API_KEY` in `.env`).
 
 ## Supabase remote-engineering rule (Q3)
 
@@ -97,7 +111,7 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 - GitHub activity uses one API page per org, not full 7-day pagination.
 - **Topic classification is keyword-based** (`config.TOPIC_KEYWORDS`), not embeddings or a model. The failure mode is matching **company identity** instead of subject — e.g. when `supabase` was in the `databases` keyword list, every Supabase post matched (100%). Vendor names are now forbidden in topic sets, and `data_quality_topic_identity` fails if any company hits 100% on a topic. Compare retrieval uses scored lexical ranking (title-weighted, length-normalized, top-k per company) — vectors would be the next step, not a missing foundation.
 - Compare answers without `ANTHROPIC_API_KEY` (or without `anthropic` installed) return a labeled extractive bullet list from retrieved posts — not synthesized prose.
-- browser-use agent tier not run live (skip trace only).
+- browser-use agent: **measured failure** — DeepSeek-v4-flash returns flat action JSON incompatible with browser-use's `AgentOutput` schema; full trace in `fixtures/vercel_agent_discovery.json`.
 
 ## Another week
 
@@ -110,4 +124,4 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 
 ## Time spent
 
-~17 hours including V2–V4 review fixes (see `TIMELOG.md`).
+**~21 hours total** — exceeds the brief's 12-hour cap. V5 browser tiers (a11y + agent measurement) were done after the cap; see `TIMELOG.md`.

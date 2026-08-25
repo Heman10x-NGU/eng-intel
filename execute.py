@@ -397,7 +397,9 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         preview = ", ".join(_truncate_title(r["title"]) for r in display_rows[:5])
         answer = f"{total_count} items in window, showing {len(display_rows)}. Recent: {preview}"
         if coverage_note:
-            answer += f" ({coverage_note})"
+            n = len([p for p in coverage_note.split(";") if p.strip()])
+            label = "caveat" if n == 1 else "caveats"
+            answer += f" {n} coverage {label} — see panel."
     else:
         answer = "Unsupported operation."
         model_text = ""

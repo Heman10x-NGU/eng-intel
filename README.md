@@ -48,6 +48,22 @@ A recruiter, investor, or engineer tracking these three companies wants one plac
 
 Browser bonus: measured Playwright vs API on the same 86/87 Vercel board (`artifacts/scrape_accuracy.json`).
 
+## Supabase remote-engineering rule (Q3)
+
+Ashby returns `isRemote: null` on most rows; some AMER-titled roles have `isRemote: true` without "remote" in the location string.
+
+**Rule:** `is_remote` is derived only when `location` contains the word **remote** (word boundary). Bare regions (`AMER`, `APAC`) are not treated as remote even if Ashby flags them — the raw `ashby_is_remote_raw` field stays in `extra_json` for audit.
+
+Three-way split on Engineering roles (fixture, Aug 2026):
+
+| Bucket | Count | Examples |
+|---|---|---|
+| Location contains "remote" | **18** | `Remote, Anywhere` — **used for Q3** |
+| Bare region only | 3 | `AMER` — OrioleDB Developer, IAM Engineer, API Engineer |
+| On-site / hybrid | 0 | — |
+
+Eval pins Q3 at **18** rows, all `department=Engineering`.
+
 ## Stack
 
 | Layer | Choice | Why |

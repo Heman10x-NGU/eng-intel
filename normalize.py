@@ -67,16 +67,16 @@ def _parse_date(value: str | None) -> str | None:
 
 
 def derive_is_remote(location: str | None, raw_remote: Any = None) -> bool | None:
-    if raw_remote is True:
+    """True only when location text contains the word 'remote'.
+
+    Ashby sometimes sets isRemote=true on bare-region locations (AMER/APAC).
+    We keep ashby_is_remote_raw in extra_json but filter on location text for Q3.
+    """
+    if location and re.search(r"\bremote\b", location, re.I):
         return True
     if raw_remote is False:
         return False
-    if not location:
-        return None
-    loc = location.lower()
-    if re.search(r"\bremote\b", loc):
-        return True
-    if re.search(r"\b(hybrid|on-?site|office)\b", loc):
+    if location and re.search(r"\b(hybrid|on-?site|office)\b", location, re.I):
         return False
     return None
 

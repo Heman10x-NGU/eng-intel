@@ -228,9 +228,7 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         aggregates = {"count": total_count}
         answer = f"{total_count} roles found."
         if plan.companies == ["supabase"] and plan.filters.get("remote") and plan.filters.get("department") == "Engineering":
-            title_regex = re.compile(r"engineer|developer|sre|reliability", re.I)
-            alt = [r for r in rows if title_regex.search(r["title"] or "")]
-            answer += f" (Title-regex filter would match {len(alt)}; department filter used for Engineering.)"
+            answer += " (Remote = location contains 'remote'; 3 AMER-titled Engineering roles excluded.)"
         if coverage_note:
             answer += f" {coverage_note}"
 

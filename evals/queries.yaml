@@ -51,9 +51,9 @@
     filters:
       remote: true
       department: Engineering
-  expect:
-    n_min: 15
-    n_max: 22
+  expect_result:
+    count: 18
+    all_rows_department: Engineering
 
 - id: q3_paraphrase
   q: "list remote eng jobs at supabase"

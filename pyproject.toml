@@ -6,7 +6,6 @@ requires-python = ">=3.11"
 [project.optional-dependencies]
 agent = [
   "browser-use",
-  "langchain-anthropic",
 ]
 llm = [
   "anthropic>=0.40.0",

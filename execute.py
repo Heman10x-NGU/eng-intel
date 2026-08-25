@@ -28,6 +28,7 @@ class ExecuteResult:
     sql: str
     sql_params: list[Any]
     search_mode: str = SEARCH_MODE
+    model_text: str = ""
 
 
 def _companies_clause(companies: list[str]) -> tuple[str, list[str]]:
@@ -205,6 +206,7 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         rows = _filter_rows_topic(rows, plan.topic)
 
     aggregates: dict[str, Any] = {}
+    model_text = ""
 
     if plan.op == "count":
         by_company: dict[str, int] = {}
@@ -268,11 +270,10 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
     elif plan.op == "compare":
         chunk_rows = rows[: plan.limit]
         chunks = _rows_to_dicts(chunk_rows)
-        answer = _synthesize_compare(chunks)
         rows = chunk_rows
         aggregates = {"chunks": len(chunks)}
-        if coverage_note:
-            answer += f"\n\nCoverage: {coverage_note}"
+        answer = ""
+        model_text = _synthesize_compare(chunks)
 
     elif plan.op == "timeline":
         aggregates = {"count": len(rows)}
@@ -282,6 +283,7 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
             answer += f" ({coverage_note})"
     else:
         answer = "Unsupported operation."
+        model_text = ""
 
     return ExecuteResult(
         answer=answer,
@@ -292,4 +294,5 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         sql=sql,
         sql_params=params,
         search_mode=SEARCH_MODE,
+        model_text=model_text,
     )

@@ -16,6 +16,23 @@ from execute import execute
 from guard import apply_guard
 from plan import build_plan
 
+
+def render_answer(result) -> tuple[str, dict]:
+    """Combine executor template text with guarded model text — mirrors POST /ask."""
+    guard_info = {"stripped_urls": [], "stripped_numbers": []}
+    if result.model_text:
+        guarded = apply_guard(
+            result.model_text, result.citations, result.rows, result.aggregates
+        )
+        guard_info = {
+            "stripped_urls": guarded.stripped_urls,
+            "stripped_numbers": guarded.stripped_numbers,
+        }
+        answer = guarded.text if not result.answer else f"{result.answer}\n\n{guarded.text}"
+    else:
+        answer = result.answer
+    return answer, guard_info
+
 load_dotenv()
 
 app = FastAPI(title="eng-intel")
@@ -37,21 +54,18 @@ def ask(req: AskRequest):
     plan = build_plan(req.question)
     with get_conn() as conn:
         result = execute(conn, plan)
-    guarded = apply_guard(result.answer, result.citations, result.rows, result.aggregates)
+    answer, guard_info = render_answer(result)
     return {
         "question": req.question,
         "plan": plan.to_dict(),
-        "answer": guarded.text,
+        "answer": answer,
         "coverage": result.coverage_note,
         "citations": result.citations,
         "aggregates": result.aggregates,
         "sql": result.sql,
         "sql_params": result.sql_params,
         "search_mode": result.search_mode,
-        "guard": {
-            "stripped_urls": guarded.stripped_urls,
-            "stripped_numbers": guarded.stripped_numbers,
-        },
+        "guard": guard_info,
     }
 
 

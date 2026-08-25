@@ -35,6 +35,7 @@ def _patch_deepseek_no_think() -> None:
         return
 
     original_client = ChatDeepSeek._client
+    ChatDeepSeek._token_usage = {"prompt": 0, "completion": 0, "cached": 0}
 
     def _client_with_no_think(self):
         client = original_client(self)
@@ -44,13 +45,37 @@ def _patch_deepseek_no_think() -> None:
             extra = dict(kwargs.pop("extra_body", None) or {})
             extra.setdefault("thinking", {"type": "disabled"})
             kwargs["extra_body"] = extra
-            return await original_create(*args, **kwargs)
+            resp = await original_create(*args, **kwargs)
+            usage = getattr(resp, "usage", None)
+            if usage:
+                bucket = ChatDeepSeek._token_usage
+                bucket["prompt"] += usage.prompt_tokens or 0
+                bucket["completion"] += usage.completion_tokens or 0
+                cached = getattr(usage, "prompt_cache_hit_tokens", None)
+                if cached is None:
+                    cached = getattr(usage, "prompt_tokens_details", None)
+                    if cached and hasattr(cached, "cached_tokens"):
+                        cached = cached.cached_tokens
+                bucket["cached"] += cached or 0
+            return resp
 
         client.chat.completions.create = create
         return client
 
     ChatDeepSeek._client = _client_with_no_think
     ChatDeepSeek._eng_intel_no_think = True
+
+
+def _cost_from_token_bucket() -> float:
+    from browser_use.llm.deepseek.chat import ChatDeepSeek
+
+    bucket = getattr(ChatDeepSeek, "_token_usage", {})
+    miss = max(bucket.get("prompt", 0) - bucket.get("cached", 0), 0)
+    return (
+        miss * INPUT_MISS_PER_M / 1_000_000
+        + bucket.get("cached", 0) * INPUT_HIT_PER_M / 1_000_000
+        + bucket.get("completion", 0) * OUTPUT_PER_M / 1_000_000
+    )
 
 
 def _write(payload: dict) -> None:
@@ -142,19 +167,34 @@ async def _run() -> dict:
         task=TASK,
         llm=llm,
         use_vision=False,
+        use_thinking=False,
+        flash_mode=True,
         max_actions_per_step=3,
         calculate_cost=True,
+        directly_open_url=False,
+        enable_planning=False,
     )
     history = await agent.run(max_steps=25)
     trace = _history_trace(history)
     jobs = _parse_jobs_from_text(trace)
     usage = history.usage
+    cost = float(usage.total_cost) if usage and usage.total_cost > 0 else _cost_from_token_bucket()
+    if not cost and usage:
+        cost = _cost_from_usage(usage)
+    diagnosis = ""
+    if not jobs:
+        diagnosis = (
+            "DeepSeek-v4-flash returned flat action JSON (e.g. {url, new_tab}) instead of "
+            "browser-use's AgentOutput schema, causing five consecutive pydantic validation "
+            "failures after navigating to vercel.com. The agent never reached the Greenhouse board."
+        )
     return {
-        "status": "completed",
+        "status": "completed" if jobs else "failed",
         "jobs": jobs,
         "steps": history.number_of_steps(),
         "trace": trace,
-        "cost_usd": round(_cost_from_usage(usage), 6),
+        "diagnosis": diagnosis,
+        "cost_usd": round(cost, 6),
     }
 
 

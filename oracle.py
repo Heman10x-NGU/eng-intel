@@ -101,7 +101,7 @@ def main() -> None:
     agent_path = Path("fixtures/vercel_agent_discovery.json")
     if agent_path.exists():
         agent = json.loads(agent_path.read_text())
-        if agent.get("jobs"):
+        if isinstance(agent.get("jobs"), list):
             results.append(
                 score_candidate(
                     gt,

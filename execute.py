@@ -92,6 +92,15 @@ def _filter_rows_topic(rows: list[sqlite3.Row], topic: str) -> list[sqlite3.Row]
     return out
 
 
+def _truncate_title(title: str | None, max_len: int = 40) -> str:
+    if not title:
+        return ""
+    if len(title) <= max_len:
+        return title
+    cut = title[:max_len].rsplit(" ", 1)[0]
+    return (cut or title[:max_len]) + "…"
+
+
 def _fetch_base(conn: sqlite3.Connection, plan: QueryPlan, since: date | None, until: date | None) -> tuple[list[sqlite3.Row], str, list[Any]]:
     cc, cp = _companies_clause(plan.companies)
     sc, sp = _source_clause(plan.source_types)
@@ -302,9 +311,12 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
         model_text = _synthesize_compare(chunks)
 
     elif plan.op == "timeline":
-        aggregates = {"count": len(rows)}
-        preview = ", ".join(f"{r['title'][:40]}" for r in rows[:5])
-        answer = f"{len(rows)} items in window. Recent: {preview}"
+        total_count = len(rows)
+        display_rows = rows[: plan.limit]
+        rows = display_rows
+        aggregates = {"count": total_count, "showing": len(display_rows)}
+        preview = ", ".join(_truncate_title(r["title"]) for r in display_rows[:5])
+        answer = f"{total_count} items in window, showing {len(display_rows)}. Recent: {preview}"
         if coverage_note:
             answer += f" ({coverage_note})"
     else:

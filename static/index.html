@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>eng-intel</title>
+  <style>
+    :root {
+      --primary: #5e6ad2;
+      --ink: #0f1011;
+      --ink-muted: #62666d;
+      --canvas: #ffffff;
+      --surface: #f5f6f6;
+      --hairline: #e3e4e6;
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #f7f8f8;
+        --ink-muted: #8a8f98;
+        --canvas: #010102;
+        --surface: #0f1011;
+        --hairline: #23252a;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--canvas);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .sub { color: var(--ink-muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .query-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    input[type=text] {
+      flex: 1;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--hairline);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 0.95rem;
+    }
+    button {
+      padding: 0.65rem 1rem;
+      border: none;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .examples { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem; }
+    .examples button { background: var(--surface); color: var(--ink); border: 1px solid var(--hairline); font-size: 0.8rem; }
+    .block {
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.75rem;
+      background: var(--surface);
+    }
+    .block h2 {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-muted);
+      margin: 0 0 0.5rem;
+      font-weight: 600;
+    }
+    .answer { font-size: 1rem; font-variant-numeric: tabular-nums; }
+    pre {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-variant-numeric: tabular-nums;
+    }
+    .coverage { color: var(--ink-muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+    ul.citations { margin: 0; padding-left: 1.1rem; font-size: 0.85rem; }
+    ul.citations a { color: var(--primary); }
+    .guard { font-size: 0.8rem; color: #c45; }
+    details { margin-top: 0.5rem; font-size: 0.8rem; color: var(--ink-muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>eng-intel</h1>
+    <p class="sub">Engineering intelligence over Vercel, Supabase, and HashiCorp — warehouse queries with citations.</p>
+
+    <div class="query-row">
+      <input id="q" type="text" placeholder="Ask about jobs, blogs, or GitHub activity…" />
+      <button id="ask">Ask</button>
+    </div>
+    <div class="examples" id="examples"></div>
+
+    <div id="results" hidden>
+      <div class="block">
+        <h2>Answer</h2>
+        <div class="answer" id="answer"></div>
+        <div class="guard" id="guard"></div>
+      </div>
+      <div class="block">
+        <h2>QueryPlan</h2>
+        <pre id="plan"></pre>
+        <details><summary>SQL</summary><pre id="sql"></pre></details>
+      </div>
+      <div class="block">
+        <h2>Coverage</h2>
+        <div class="coverage" id="coverage">—</div>
+      </div>
+      <div class="block">
+        <h2>Citations</h2>
+        <ul class="citations" id="citations"></ul>
+      </div>
+    </div>
+  </div>
+  <script>
+    const EXAMPLES = [
+      "How many job postings across these companies mention Rust?",
+      "Which company has shipped the most blog posts about databases in the last 6 months?",
+      "Show me remote engineering roles at Supabase.",
+      "Compare how Vercel and Supabase talk about their database products.",
+      "Which of these companies is most active on GitHub right now?",
+      "What new content has come out across these companies in the last 30 days?"
+    ];
+    const ex = document.getElementById('examples');
+    EXAMPLES.forEach(q => {
+      const b = document.createElement('button');
+      b.textContent = q.slice(0, 48) + (q.length > 48 ? '…' : '');
+      b.title = q;
+      b.onclick = () => { document.getElementById('q').value = q; run(); };
+      ex.appendChild(b);
+    });
+
+    async function run() {
+      const question = document.getElementById('q').value.trim();
+      if (!question) return;
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+      const data = await res.json();
+      document.getElementById('results').hidden = false;
+      document.getElementById('answer').textContent = data.answer;
+      document.getElementById('plan').textContent = JSON.stringify(data.plan, null, 2);
+      document.getElementById('sql').textContent = data.sql + '\n' + JSON.stringify(data.sql_params);
+      document.getElementById('coverage').textContent = data.coverage || 'All companies cover the requested window for this source.';
+      const cit = document.getElementById('citations');
+      cit.innerHTML = '';
+      (data.citations || []).slice(0, 30).forEach(c => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = c.url; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = (c.company || '') + ': ' + (c.title || c.url);
+        li.appendChild(a);
+        cit.appendChild(li);
+      });
+      const g = data.guard || {};
+      const parts = [];
+      if (g.stripped_urls?.length) parts.push('Stripped URLs: ' + g.stripped_urls.join(', '));
+      if (g.stripped_numbers?.length) parts.push('Stripped numbers: ' + g.stripped_numbers.join(', '));
+      document.getElementById('guard').textContent = parts.join(' | ');
+    }
+    document.getElementById('ask').onclick = run;
+    document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+  </script>
+</body>
+</html>

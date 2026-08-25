@@ -3,10 +3,23 @@
   "methods": [
     {
       "method": "greenhouse_api",
+      "scope": "full board",
       "found": 87,
       "total": 87,
       "recall": 1.0,
       "field_accuracy": 1.0,
+      "field_accuracy_exact": 1.0,
+      "field_accuracy_normalized": 1.0,
+      "fields_accuracy": {
+        "title": 1.0,
+        "location": 1.0,
+        "department": 1.0
+      },
+      "fields_accuracy_normalized": {
+        "title": 1.0,
+        "location": 1.0,
+        "department": 1.0
+      },
       "wall_clock_s": 1.0,
       "cost_usd": 0.0,
       "beats_bot_walls": false,
@@ -15,10 +28,23 @@
     },
     {
       "method": "playwright-selectors",
+      "scope": "full board",
       "found": 50,
       "total": 87,
       "recall": 0.575,
       "field_accuracy": 0.967,
+      "field_accuracy_exact": 0.967,
+      "field_accuracy_normalized": 0.967,
+      "fields_accuracy": {
+        "title": 0.9,
+        "location": 1.0,
+        "department": 1.0
+      },
+      "fields_accuracy_normalized": {
+        "title": 0.9,
+        "location": 1.0,
+        "department": 1.0
+      },
       "wall_clock_s": 4.35,
       "cost_usd": 0.0,
       "beats_bot_walls": false,
@@ -33,10 +59,23 @@
     },
     {
       "method": "a11y-tree-deepseek",
+      "scope": "full board",
       "found": 50,
       "total": 87,
       "recall": 0.575,
       "field_accuracy": 1.0,
+      "field_accuracy_exact": 1.0,
+      "field_accuracy_normalized": 1.0,
+      "fields_accuracy": {
+        "title": 1.0,
+        "location": 1.0,
+        "department": 1.0
+      },
+      "fields_accuracy_normalized": {
+        "title": 1.0,
+        "location": 1.0,
+        "department": 1.0
+      },
       "wall_clock_s": 83.11,
       "cost_usd": 0.00965,
       "beats_bot_walls": false,
@@ -51,64 +90,106 @@
     },
     {
       "method": "browser-use-agent",
-      "found": 16,
-      "total": 87,
-      "recall": 0.184,
-      "field_accuracy": 0.646,
+      "scope": "engineering only",
+      "found": 15,
+      "total": 15,
+      "recall": 1.0,
+      "field_accuracy": 0.667,
+      "field_accuracy_exact": 0.667,
+      "field_accuracy_normalized": 1.0,
+      "fields_accuracy": {
+        "title": 1.0,
+        "location": 0.0,
+        "department": 1.0
+      },
+      "fields_accuracy_normalized": {
+        "title": 1.0,
+        "location": 1.0,
+        "department": 1.0
+      },
       "wall_clock_s": 38.89,
       "cost_usd": 0.018671,
       "beats_bot_walls": false,
-      "missed_sample": [
-        "https://job-boards.greenhouse.io/vercel/jobs/5039945004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5042166004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5042174004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5579560004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5686511004"
+      "missed_sample": [],
+      "invented_sample": [
+        "https://job-boards.greenhouse.io/vercel/jobs/5649459004"
       ],
-      "invented_sample": []
+      "found_full_board": 16,
+      "total_full_board": 87,
+      "recall_full_board": 0.184
     },
     {
       "method": "browser-use-agent-fc-flash",
+      "scope": "engineering only",
       "found": 0,
-      "total": 87,
+      "total": 15,
       "recall": 0.0,
       "field_accuracy": 0.0,
+      "field_accuracy_exact": 0.0,
+      "field_accuracy_normalized": 0.0,
+      "fields_accuracy": {
+        "title": 0.0,
+        "location": 0.0,
+        "department": 0.0
+      },
+      "fields_accuracy_normalized": {
+        "title": 0.0,
+        "location": 0.0,
+        "department": 0.0
+      },
       "wall_clock_s": 26.98,
       "cost_usd": 0.007455,
       "beats_bot_walls": false,
       "missed_sample": [
-        "https://job-boards.greenhouse.io/vercel/jobs/5039945004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5042166004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5042174004",
         "https://job-boards.greenhouse.io/vercel/jobs/5179639004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5428982004"
+        "https://job-boards.greenhouse.io/vercel/jobs/5428982004",
+        "https://job-boards.greenhouse.io/vercel/jobs/5430088004",
+        "https://job-boards.greenhouse.io/vercel/jobs/5474915004",
+        "https://job-boards.greenhouse.io/vercel/jobs/5633880004"
       ],
       "invented_sample": []
     },
     {
       "method": "browser-use-agent-fc-deepseek-chat",
+      "scope": "engineering only",
       "found": 0,
-      "total": 87,
+      "total": 15,
       "recall": 0.0,
       "field_accuracy": 0.0,
+      "field_accuracy_exact": 0.0,
+      "field_accuracy_normalized": 0.0,
+      "fields_accuracy": {
+        "title": 0.0,
+        "location": 0.0,
+        "department": 0.0
+      },
+      "fields_accuracy_normalized": {
+        "title": 0.0,
+        "location": 0.0,
+        "department": 0.0
+      },
       "wall_clock_s": 16.15,
       "cost_usd": 0.001571,
       "beats_bot_walls": false,
       "missed_sample": [
-        "https://job-boards.greenhouse.io/vercel/jobs/5039945004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5042166004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5042174004",
         "https://job-boards.greenhouse.io/vercel/jobs/5179639004",
-        "https://job-boards.greenhouse.io/vercel/jobs/5428982004"
+        "https://job-boards.greenhouse.io/vercel/jobs/5428982004",
+        "https://job-boards.greenhouse.io/vercel/jobs/5430088004",
+        "https://job-boards.greenhouse.io/vercel/jobs/5474915004",
+        "https://job-boards.greenhouse.io/vercel/jobs/5633880004"
       ],
       "invented_sample": []
     },
     {
       "method": "cloakbrowser",
+      "scope": "full board",
       "found": 0,
       "total": 0,
       "recall": null,
       "field_accuracy": null,
+      "field_accuracy_exact": null,
+      "field_accuracy_normalized": null,
+      "fields_accuracy": null,
       "wall_clock_s": 10,
       "cost_usd": 0.0,
       "beats_bot_walls": true,

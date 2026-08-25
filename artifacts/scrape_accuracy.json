@@ -18,8 +18,8 @@
       "found": 50,
       "total": 87,
       "recall": 0.575,
-      "field_accuracy": 0.3,
-      "wall_clock_s": 5.38,
+      "field_accuracy": 0.967,
+      "wall_clock_s": 3.72,
       "cost_usd": 0.0,
       "beats_bot_walls": false,
       "missed_sample": [
@@ -40,9 +40,7 @@
       "wall_clock_s": 10,
       "cost_usd": 0.0,
       "beats_bot_walls": true,
-      "note": "Cleared HashiCorp bot wall; IBM keyword search returned 3 non-HashiCorp roles — excluded from corpus",
-      "missed_sample": [],
-      "invented_sample": []
+      "note": "HashiCorp bot wall cleared; IBM keyword hits excluded \u2014 see docs/SOURCE_NOTES_hashicorp.md"
     }
   ]
 }

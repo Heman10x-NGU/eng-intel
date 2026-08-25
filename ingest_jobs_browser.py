@@ -12,8 +12,11 @@ from config import ENDPOINTS, FIXTURE_PATHS
 
 SELECTORS = {
     "vercel": {
-        "job_card": "a[href*='/jobs/']",
-        "title": "a[href*='/jobs/']",
+        "department_header": "h3",
+        "job_row": "tr.job-post",
+        "title": ".body--medium",
+        "location": ".body--metadata",
+        "job_link": 'a[href*="/jobs/"]',
     }
 }
 
@@ -23,34 +26,38 @@ def scrape_vercel_playwright(headless: bool = True) -> tuple[list[dict], float]:
 
     url = ENDPOINTS["vercel"]["jobs_board"]
     t0 = time.time()
-    jobs: list[dict] = []
+    jobs_by_url: dict[str, dict] = {}
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
         page = browser.new_page()
-        page.goto(url, wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(3000)
-        cards = page.query_selector_all(SELECTORS["vercel"]["job_card"])
-        seen = set()
-        for card in cards:
-            href = card.get_attribute("href") or ""
-            if "/jobs/" not in href:
-                continue
-            if not href.startswith("http"):
-                href = "https://job-boards.greenhouse.io" + href
-            if href in seen:
-                continue
-            seen.add(href)
-            title = (card.inner_text() or "").strip().split("\n")[0]
-            jobs.append(
-                {
-                    "title": title,
-                    "url": href,
-                    "location": None,
-                    "department": None,
-                }
+        page.goto(url, wait_until="networkidle", timeout=90000)
+        for dept in page.locator(SELECTORS["vercel"]["department_header"]).all():
+            department = (dept.inner_text() or "").strip().split("\n")[0]
+            rows = dept.evaluate(
+                """(el) => {
+                  const out = [];
+                  let n = el.nextElementSibling;
+                  while (n && n.tagName !== 'H3') {
+                    n.querySelectorAll('tr.job-post').forEach((row) => {
+                      const a = row.querySelector('a[href*="/jobs/"]');
+                      const title = row.querySelector('.body--medium')?.textContent?.trim();
+                      const loc = row.querySelector('.body--metadata')?.textContent?.trim();
+                      if (a) out.push({ url: a.href, title, location: loc });
+                    });
+                    n = n.nextElementSibling;
+                  }
+                  return out;
+                }"""
             )
+            for row in rows:
+                jobs_by_url[row["url"]] = {
+                    "title": row.get("title"),
+                    "url": row["url"],
+                    "location": row.get("location"),
+                    "department": department,
+                }
         browser.close()
-    return jobs, time.time() - t0
+    return list(jobs_by_url.values()), time.time() - t0
 
 
 def scrape_hashicorp_cloak() -> tuple[list[dict], float]:

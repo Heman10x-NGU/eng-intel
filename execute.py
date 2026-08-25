@@ -49,10 +49,10 @@ def _date_clause(since: date | None, until: date | None) -> tuple[str, list[str]
     params: list[str] = []
     if since:
         parts.append("published_at >= ?")
-        params.append(since.isoformat())
+        params.append(f"{since.isoformat()}T00:00:00+00:00")
     if until:
         parts.append("published_at <= ?")
-        params.append(until.isoformat())
+        params.append(f"{until.isoformat()}T23:59:59+00:00")
     if not parts:
         return "", []
     return " AND " + " AND ".join(parts), params

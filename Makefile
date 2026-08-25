@@ -27,3 +27,9 @@ browser-oracle:
 
 browser-cloak:
 	$(PYTHON) ingest_jobs_browser.py --hashicorp
+
+browser-a11y:
+	set -a && [ -f .env ] && . ./.env; set +a && $(PYTHON) ingest_jobs_browser.py --a11y
+
+browser-agent:
+	set -a && [ -f .env ] && . ./.env; set +a && $(PYTHON) ingest_jobs_agent.py

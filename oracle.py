@@ -84,6 +84,20 @@ def main() -> None:
         except Exception as exc:
             results.append({"method": "playwright-selectors", "error": str(exc)})
 
+    a11y_path = Path("artifacts/a11y_vercel.json")
+    if a11y_path.exists():
+        a11y = json.loads(a11y_path.read_text())
+        if a11y.get("jobs") is not None:
+            results.append(
+                score_candidate(
+                    gt,
+                    a11y.get("jobs", []),
+                    "a11y-tree-deepseek",
+                    a11y.get("wall_clock_s", 0),
+                    cost=a11y.get("cost_usd", 0),
+                )
+            )
+
     agent_path = Path("fixtures/vercel_agent_discovery.json")
     if agent_path.exists():
         agent = json.loads(agent_path.read_text())

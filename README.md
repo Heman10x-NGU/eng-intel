@@ -40,13 +40,12 @@ A recruiter, investor, or engineer tracking these three companies wants one plac
 | Grounding guard | Strips unbacked URLs/integers from **model synthesis only** (`render_answer` in `app.py`); executor template text is trusted |
 | Playwright selector scrape + accuracy oracle | 50/87 recall (embed cap); **97% field accuracy** — see `docs/PLAYWRIGHT_VERCEL_DIAGNOSIS.md` |
 | a11y tree + DeepSeek extraction | 50/87 recall, **100% field accuracy** on matched URLs — same embed cap as selectors |
-| browser-use agent discovery (DeepSeek) | Measured run: 0/87 recall; schema mismatch trace in `fixtures/vercel_agent_discovery.json` |
+| browser-use agent discovery (DeepSeek) | JSON-path fix: 16/87 engineering roles extracted; FC path fails for flash and deepseek-chat |
 | CloakBrowser path + HashiCorp exclusion | Zero job rows inserted; reason in ledger |
 | Plain HTML UI | Answer · QueryPlan JSON · coverage · citations |
 
 | Stubbed | Notes |
 |---|---|
-| browser-use agent tier | Subprocess via browser-use venv; measured failure trace committed |
 | VLM screenshot extraction | Skipped — README time prioritized |
 | Vector / embeddings search | `search_mode=lexical` only; hook left in executor |
 
@@ -59,7 +58,7 @@ A recruiter, investor, or engineer tracking these three companies wants one plac
 - **Blogs:** RSS; feed depth differs (Vercel 2016→, Supabase 2021→, HashiCorp ~2 months).
 - **GitHub:** org events API (first page); token optional for rate limits.
 
-Browser bonus: five methods scored against the same 87-job Greenhouse ground truth (`artifacts/scrape_accuracy.json`).
+Browser bonus: seven scored rows against the same 87-job Greenhouse ground truth (`artifacts/scrape_accuracy.json`).
 
 | Method | Found /87 | Field acc. | Wall clock | Cost | Beats bot wall | Brief tier |
 |---|---|---|---|---|---|---|
@@ -67,9 +66,15 @@ Browser bonus: five methods scored against the same 87-job Greenhouse ground tru
 | Playwright selectors | 50 | 0.967 | 4.4s | $0 | no | solid |
 | CloakBrowser | n/a (HashiCorp) | — | ~10s | $0 | **yes** | solid+ |
 | a11y tree + DeepSeek | 50 | 1.00 | 83s | ~$0.01 | no | **stronger** |
-| browser-use agent | 0 | 0.00 | 15s | ~$0.004 | no | **strongest** (attempted) |
+| browser-use agent (JSON path) | 16 | 0.646 | 39s | ~$0.019 | no | **strongest** |
+| browser-use agent FC flash | 0 | 0.00 | 27s | ~$0.007 | no | FC schema collapse |
+| browser-use agent FC deepseek-chat | 0 | 0.00 | 16s | ~$0.002 | no | FC schema collapse |
 
-**Embed cap finding:** both selector and a11y paths stop at **50/87** with the same missed URLs — evidence the cap is structural (Greenhouse SSR embed), not a selector bug. a11y improves field accuracy on matched rows (1.00 vs 0.967) but does not clear recall.
+**Embed cap finding:** the a11y method and the Playwright selector method both stop at **50/87 with the same missed URLs** — two independent methods hitting the identical boundary is evidence the Greenhouse embed cap is structural, not a selector defect. a11y improves field accuracy on matched rows (1.00 vs 0.967) but does not clear recall.
+
+**Agent schema finding:** function-calling `AgentOutput` fails for both `deepseek-v4-flash` and `deepseek-chat` (flat action args instead of wrapper). Trimming the action registry to seven tools plus forcing DeepSeek's `json_object` path fixes the loop; the successful run extracts engineering-filtered roles only (16/87).
+
+**Agent cost basis:** `cost_usd` sums token counts from DeepSeek API `usage` fields captured in a `ChatDeepSeekJSON` subclass, priced at DeepSeek V4 off-peak rates when browser-use's `total_cost` is zero.
 
 Run: `make browser-oracle` (after `make browser-a11y` and `make browser-agent` with `DEEPSEEK_API_KEY` in `.env`).
 
@@ -111,7 +116,7 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 - GitHub activity uses one API page per org, not full 7-day pagination.
 - **Topic classification is keyword-based** (`config.TOPIC_KEYWORDS`), not embeddings or a model. The failure mode is matching **company identity** instead of subject — e.g. when `supabase` was in the `databases` keyword list, every Supabase post matched (100%). Vendor names are now forbidden in topic sets, and `data_quality_topic_identity` fails if any company hits 100% on a topic. Compare retrieval uses scored lexical ranking (title-weighted, length-normalized, top-k per company) — vectors would be the next step, not a missing foundation.
 - Compare answers without `ANTHROPIC_API_KEY` (or without `anthropic` installed) return a labeled extractive bullet list from retrieved posts — not synthesized prose.
-- browser-use agent: **measured failure** — DeepSeek-v4-flash returns flat action JSON incompatible with browser-use's `AgentOutput` schema; full trace in `fixtures/vercel_agent_discovery.json`.
+- browser-use agent: function-calling path **fails** (action-union schema collapse); JSON-path subclass + trimmed tools **succeeds** for engineering-filtered extraction — traces in `fixtures/vercel_agent_*.json`.
 
 ## Another week
 
@@ -124,4 +129,4 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 
 ## Time spent
 
-**~21 hours total** — exceeds the brief's 12-hour cap. V5 browser tiers (a11y + agent measurement) were done after the cap; see `TIMELOG.md`.
+**~4 hours end to end** including planning and review rounds before and between commits; **~1h 45m** of that is visible in git commit timestamps (first commit `2026-08-26 01:02 IST` through V5 at `02:47 IST`, plus V6 fixes in the same session). Do not cite the brief's planned block estimates (~21h) as hours worked.

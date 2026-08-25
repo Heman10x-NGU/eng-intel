@@ -101,7 +101,7 @@ def main() -> None:
     agent_path = Path("fixtures/vercel_agent_discovery.json")
     if agent_path.exists():
         agent = json.loads(agent_path.read_text())
-        if isinstance(agent.get("jobs"), list):
+        if isinstance(agent.get("jobs"), list) and agent.get("status") == "completed":
             results.append(
                 score_candidate(
                     gt,
@@ -109,6 +109,24 @@ def main() -> None:
                     "browser-use-agent",
                     agent.get("wall_clock_s", 0),
                     cost=agent.get("cost_usd", 0),
+                )
+            )
+
+    for path, method in (
+        (Path("fixtures/vercel_agent_fc_flash.json"), "browser-use-agent-fc-flash"),
+        (Path("fixtures/vercel_agent_deepseek_chat.json"), "browser-use-agent-fc-deepseek-chat"),
+    ):
+        if not path.exists():
+            continue
+        artifact = json.loads(path.read_text())
+        if artifact.get("status") != "completed":
+            results.append(
+                score_candidate(
+                    gt,
+                    artifact.get("jobs", []),
+                    method,
+                    artifact.get("wall_clock_s", 0),
+                    cost=artifact.get("cost_usd", 0),
                 )
             )
 

@@ -94,6 +94,14 @@
   expect_result:
     blog_null_dates: 0
 
+- id: data_quality_topic_identity
+  q: "How many blog posts are in the corpus?"
+  expect_plan:
+    op: count
+    source_types: [blog]
+  expect_result:
+    topic_no_identity_match: databases
+
 - id: q6_paraphrase
   q: "what's new in the last 30 days across companies"
   expect_plan:

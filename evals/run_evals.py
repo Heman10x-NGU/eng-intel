@@ -150,6 +150,25 @@ def _check_expect_result(conn, expect_result: dict, plan, result) -> list[str]:
             if company not in companies_present:
                 errs.append(f"timeline missing company {company}")
 
+    if topic := expect_result.get("topic_no_identity_match"):
+        from topic_quality import topic_identity_violations
+
+        errs.extend(topic_identity_violations(conn, topic))
+
+    if expect_result.get("q4_retrieval_quality"):
+        from topic_quality import q4_retrieval_violations
+
+        if plan and result:
+            errs.extend(
+                q4_retrieval_violations(
+                    result.rows,
+                    plan.companies or [],
+                    plan.topic or "databases",
+                )
+            )
+        else:
+            errs.append("q4_retrieval_quality: missing plan or result")
+
     return errs
 
 

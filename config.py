@@ -51,9 +51,6 @@ TOPIC_KEYWORDS: dict[str, list[str]] = {
         "sql",
         "prisma",
         "drizzle",
-        "supabase",
-        "neon",
-        "planetscale",
         "mysql",
         "mongodb",
         "redis",
@@ -61,6 +58,13 @@ TOPIC_KEYWORDS: dict[str, list[str]] = {
         "storage engine",
     ],
 }
+
+# Company / vendor names must never appear in topic sets (identity ≠ subject).
+TOPIC_FORBIDDEN_TERMS = frozenset(COMPANIES) | frozenset({"neon", "planetscale", "vercel"})
+for _topic, _kws in TOPIC_KEYWORDS.items():
+    _overlap = TOPIC_FORBIDDEN_TERMS & {k.lower() for k in _kws}
+    if _overlap:
+        raise ValueError(f"topic {_topic!r} contains vendor/company names: {sorted(_overlap)}")
 
 SOURCE_TYPES = ["job", "blog", "repo_activity"]
 

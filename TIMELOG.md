@@ -1,4 +1,4 @@
-# TIMELOG — section 10 blocks
+# TIMELOG — section 10 blocks + V2 fixes
 
 | Block | Target | Actual | Notes |
 |---|---|---|---|
@@ -10,7 +10,20 @@
 | 6.5–6.75 Cloak + HashiCorp exclusion | 15m | 20m | Fixture + SOURCE_NOTES; zero rows inserted |
 | 6.75–8.25 browser-use agent | 90m | 15m | Skipped live run; trace artifact only |
 | 8.25–9.0 HTML UI | 45m | 40m | Linear-inspired tokens, four blocks |
-| 9.0–10.0 evals | 60m | 45m | 20/20 pass |
+| 9.0–10.0 evals | 60m | 45m | 20/20 pass (initial) |
 | 10.0–11.0 README + DESIGN + TIMELOG | 60m | 50m | — |
 
-**Total: ~10h 30m**
+**Initial build: ~10h 30m**
+
+## V2 review fixes (2026-08-26)
+
+| Fix | Time | Commit |
+|---|---|---|
+| FIX-1 RFC-822 blog dates | 25m | `fix(ingest): parse RFC-822 feed dates` |
+| FIX-2 degraded ledger flag | 30m | `fix(coverage): flag degraded ingests` |
+| FIX-3 expect_result evals | 35m | `test(evals): assert on query results` |
+| FIX-5 Q3 remote rule (18) | 20m | `fix(ingest): derive remote only from location text` |
+| FIX-4 Playwright diagnosis | 45m | `fix(browser): correct Playwright selectors` |
+| Docs update | 20m | `docs: sync README and design after V2 fixes` |
+
+**V2 fixes: ~2h 55m · Grand total: ~13h 25m**

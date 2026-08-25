@@ -25,9 +25,14 @@ The UI always shows the filled QueryPlan JSON beside the answer.
 ## Bad or missing data
 
 - **Truncated RSS** → `ingest_runs.truncated=1` + note; Q2 re-ranks on shared window.
+- **Degraded ingest** → `ingest_runs.degraded=1` when rows exist but dates are unparseable (`coverage_start` null); company excluded from time-window rankings with stated reason. Unit-tested in `tests/test_degraded_ingest.py`.
 - **No job board** (HashiCorp) → zero rows, ledger explains IBM redirect.
-- **Null API fields** (Supabase `isRemote`) → derived flags in `extra_json`, disclosed in README.
+- **Null API fields** (Supabase `isRemote`) → remote derived from location text only; raw Ashby field kept in `extra_json`.
 - **GitHub 403** → falls back to last committed fixture.
+
+## Eval harness
+
+`expect_plan` asserts routing. `expect_result` asserts answers where ground truth is known — would have caught the Supabase RFC-822 date bug via `blog_null_dates: 0` and Q2 `ranking_includes: [supabase]`.
 
 ## Scale: 50 companies × 500 documents
 

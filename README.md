@@ -2,6 +2,15 @@
 
 Local engineering intelligence warehouse for **Vercel**, **Supabase**, and **HashiCorp**. Ask natural-language questions about what they hire for, publish on engineering blogs, and ship on GitHub — with citations and a visible **QueryPlan** for every answer.
 
+## Where to look
+
+| Area | Files |
+|---|---|
+| Ingest | `ingest_jobs_api.py`, `ingest_blogs.py`, `ingest_github.py`, `ingest_jobs_browser.py`, `normalize.py`, `seed.py` |
+| Query layer | `plan.py` (+ `temporal.py` for relative date rules) → `execute.py` → `guard.py` |
+| Coverage ledger | `ingest_runs` via `normalize.write_run`, read in `coverage.py` |
+| Everything else | `config.py`, `db.py`, `app.py`, `static/index.html`, `evals/` |
+
 ## Quick start
 
 ```bash
@@ -27,7 +36,7 @@ A recruiter, investor, or engineer tracking these three companies wants one plac
 | GitHub org events rollup | Push+PR metric over 7 days |
 | QueryPlan IR + single executor | Rules fill slots; LLM only for gaps / compare synthesis |
 | Grounding guard | Strips unbacked URLs and integers |
-| Playwright selector scrape + accuracy oracle | Scored against Greenhouse ground truth |
+| Playwright selector scrape + accuracy oracle | 50/87 recall (embed cap); **97% field accuracy** — see `docs/PLAYWRIGHT_VERCEL_DIAGNOSIS.md` |
 | CloakBrowser path + HashiCorp exclusion | Zero job rows inserted; reason in ledger |
 | Plain HTML UI | Answer · QueryPlan JSON · coverage · citations |
 
@@ -82,17 +91,20 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 
 ## What's fake or broken
 
-- Playwright selector scrape finds ~58% of Vercel jobs (pagination/hydration).
-- Supabase `isRemote` is null in API — remote derived from location string (21 eng remote vs 18 strict probe; heuristic difference).
+- Playwright selector scrape: **50/87 recall** — Greenhouse embed SSR cap, not bad scrolling (diagnosed).
 - GitHub activity uses one API page per org, not full 7-day pagination.
 - Compare answers without `ANTHROPIC_API_KEY` return retrieved excerpts, not synthesized prose.
+- browser-use agent tier not run live (skip trace only).
 
 ## Another week
 
 - Paginate GitHub events properly; backfill HashiCorp blog beyond RSS cap.
-- Improve Playwright selectors to 86/86; run browser-use discovery with API key.
-- Embeddings for `compare` ranking only; scheduled ingest worker.
+- browser-use discovery with API key; embeddings for `compare` ranking only.
+
+## Evals
+
+`make eval` — 21 cases: plan routing **and** `expect_result` answer checks (Q1 totals, Q2 company presence, Q3 count=18, zero null blog dates).
 
 ## Time spent
 
-~10.5 hours (see `TIMELOG.md`).
+~12 hours including V2 review fixes (see `TIMELOG.md`).

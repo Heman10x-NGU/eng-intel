@@ -158,19 +158,31 @@ def _cost_from_usage(usage) -> float:
     )
 
 
+def _build_trimmed_tools():
+    from browser_use.tools.service import Tools
+
+    keep = {"navigate", "click", "input", "extract", "find_elements", "scroll", "done"}
+    all_names = list(Tools().registry.registry.actions.keys())
+    tools = Tools(exclude_actions=[n for n in all_names if n not in keep])
+    count = len(tools.registry.registry.actions)
+    assert count == 7, count
+    return tools
+
+
 async def _run() -> dict:
     from browser_use import Agent
     from browser_use.llm import ChatDeepSeek
 
     _patch_deepseek_no_think()
     llm = ChatDeepSeek(model=DEFAULT_MODEL, api_key=os.environ["DEEPSEEK_API_KEY"], temperature=0)
+    tools = _build_trimmed_tools()
     agent = Agent(
         task=TASK,
         llm=llm,
+        tools=tools,
         use_vision=False,
         use_thinking=False,
-        flash_mode=True,
-        max_actions_per_step=3,
+        max_actions_per_step=1,
         calculate_cost=True,
         directly_open_url=False,
         enable_planning=False,
@@ -185,9 +197,9 @@ async def _run() -> dict:
     diagnosis = ""
     if not jobs:
         diagnosis = (
-            "DeepSeek-v4-flash returned flat action JSON (e.g. {url, new_tab}) instead of "
-            "browser-use's AgentOutput schema, causing five consecutive pydantic validation "
-            "failures after navigating to vercel.com. The agent never reached the Greenhouse board."
+            "Model returned flat action JSON (e.g. {url, new_tab}) instead of "
+            "browser-use's AgentOutput schema, causing consecutive pydantic validation "
+            "failures. Root cause: action anyOf union collapse inside forced AgentOutput tool call."
         )
     return {
         "status": "completed" if jobs else "failed",

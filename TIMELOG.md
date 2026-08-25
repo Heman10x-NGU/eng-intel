@@ -26,4 +26,19 @@
 | FIX-4 Playwright diagnosis | 45m | `fix(browser): correct Playwright selectors` |
 | Docs update | 20m | `docs: sync README and design after V2 fixes` |
 
-**V2 fixes: ~2h 55m · Grand total: ~13h 25m**
+**V2 fixes: ~2h 55m · Grand total after V2: ~13h 25m**
+
+## V3 demo-blocker fixes (2026-08-26)
+
+| Fix | Time | Commit |
+|---|---|---|
+| C2 end-of-day `until` date bounds | 15m | `fix(execute): normalize until dates to end of day` |
+| C1 guard model text only | 35m | `fix(guard): apply grounding guard to model synthesis only` |
+| C3 compare extractive fallback | 40m | `fix(compare): extractive fallback without surfacing exceptions` |
+| H1 computed filter exclusion notes | 20m | `fix(execute): derive filter exclusion counts from rows` |
+| H2 `make test` recipe | 10m | `fix(makefile): wire make test to unittest discovery` |
+| H3 timeline `plan.limit` | 15m | `fix(execute): apply plan limit to timeline results and citations` |
+| Rendered-answer evals | 25m | `test(evals): assert rendered answers for six graded queries` |
+| Docs + UI example buttons | 20m | `docs: sync README and design after V3 fixes` |
+
+**V3 fixes: ~3h · Grand total: ~16h 25m**

@@ -133,7 +133,11 @@
       const b = document.createElement('button');
       b.textContent = q.slice(0, 48) + (q.length > 48 ? '…' : '');
       b.title = q;
-      b.onclick = () => { document.getElementById('q').value = q; run(); };
+      b.onclick = () => {
+        const input = document.getElementById('q');
+        input.value = q;
+        input.focus();
+      };
       ex.appendChild(b);
     });
 

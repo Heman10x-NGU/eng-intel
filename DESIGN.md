@@ -8,9 +8,11 @@ Every question becomes a **QueryPlan** (`op`, `companies`, `source_types`, `keyw
 2. **LLM slot-fill** (optional, temp 0, pydantic) only when required slots are empty.
 3. **Executor** (`execute.py`) compiles the plan:
    - `count` / `list` / `rank` / `timeline` → parameterized SQL + FTS lexical match (`search_mode=lexical`)
-   - `compare` → retrieve top-k blog chunks, then one synthesis call citing by index
+   - `compare` → retrieve top-k blog chunks, then one synthesis call citing by index (extractive fallback when no model)
 4. **Coverage** (`coverage.py`) intersects requested windows with `ingest_runs` before cross-company count/rank/compare.
-5. **Guard** (`guard.py`) strips URLs and integers not in the result set.
+5. **Guard** (`guard.py`) strips URLs and integers not in the result set — applied to **model synthesis text only** in `app.render_answer`, not executor templates.
+6. **Date bounds** — `until` comparisons use end-of-day UTC (`T23:59:59+00:00`) so same-day timestamps are included.
+7. **Timeline** — respects `plan.limit` for citations; answer reports total vs shown.
 
 The UI always shows the filled QueryPlan JSON beside the answer.
 
@@ -32,7 +34,7 @@ The UI always shows the filled QueryPlan JSON beside the answer.
 
 ## Eval harness
 
-`expect_plan` asserts routing. `expect_result` asserts answers where ground truth is known — would have caught the Supabase RFC-822 date bug via `blog_null_dates: 0` and Q2 `ranking_includes: [supabase]`.
+`expect_plan` asserts routing. `expect_result` asserts executor aggregates where ground truth is known. `expect_rendered` (six graded queries in `evals/graded_render.yaml`) runs `render_answer` like `POST /ask` — would have caught V3 presentation bugs (guard shredding template dates, empty Q5 from string date compare, Q4 `ImportError` in answer).
 
 ## Scale: 50 companies × 500 documents
 

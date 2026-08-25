@@ -18,6 +18,8 @@ python3.11 -m venv .venv --upgrade-deps
 .venv/bin/pip install -r requirements.txt
 make seed    # builds data.db from fixtures — no network, no API key
 make run     # http://127.0.0.1:8000
+make test    # unit tests (degraded ingest)
+make eval    # 27 plan + result + rendered-answer cases
 ```
 
 Optional live refresh: `INGEST_LIVE=1 make ingest` (needs network; `GITHUB_TOKEN` optional).
@@ -35,7 +37,7 @@ A recruiter, investor, or engineer tracking these three companies wants one plac
 | Blogs via RSS | HashiCorp feed flagged `truncated` (20 items) |
 | GitHub org events rollup | Push+PR metric over 7 days |
 | QueryPlan IR + single executor | Rules fill slots; LLM only for gaps / compare synthesis |
-| Grounding guard | Strips unbacked URLs and integers |
+| Grounding guard | Strips unbacked URLs/integers from **model synthesis only** (`render_answer` in `app.py`); executor template text is trusted |
 | Playwright selector scrape + accuracy oracle | 50/87 recall (embed cap); **97% field accuracy** — see `docs/PLAYWRIGHT_VERCEL_DIAGNOSIS.md` |
 | CloakBrowser path + HashiCorp exclusion | Zero job rows inserted; reason in ledger |
 | Plain HTML UI | Answer · QueryPlan JSON · coverage · citations |
@@ -93,7 +95,7 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 
 - Playwright selector scrape: **50/87 recall** — Greenhouse embed SSR cap, not bad scrolling (diagnosed).
 - GitHub activity uses one API page per org, not full 7-day pagination.
-- Compare answers without `ANTHROPIC_API_KEY` return retrieved excerpts, not synthesized prose.
+- Compare answers without `ANTHROPIC_API_KEY` (or without `anthropic` installed) return a labeled extractive bullet list from retrieved posts — not synthesized prose.
 - browser-use agent tier not run live (skip trace only).
 
 ## Another week
@@ -103,8 +105,8 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 
 ## Evals
 
-`make eval` — 21 cases: plan routing **and** `expect_result` answer checks (Q1 totals, Q2 company presence, Q3 count=18, zero null blog dates).
+`make eval` — **27** cases: plan routing, `expect_result` answer checks (Q1 totals, Q2 company presence, Q3 count=18, zero null blog dates), and **`expect_rendered`** on all six graded demo queries (no `[n removed]`, no exception strings, Q4 ≥5 citations, Q5 non-zero GitHub ranking, Q6 respects `limit: 20`).
 
 ## Time spent
 
-~12 hours including V2 review fixes (see `TIMELOG.md`).
+~14 hours including V2 and V3 review fixes (see `TIMELOG.md`).

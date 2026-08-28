@@ -73,7 +73,11 @@ def scrape_hashicorp_cloak() -> tuple[list[dict], float]:
     t0 = time.time()
     try:
         from cloakbrowser import launch
-
+    except ImportError as exc:
+        raise SystemExit(
+            "cloakbrowser is not installed. Install with: pip install '.[browser]'"
+        ) from exc
+    try:
         browser = launch(headless=True, humanize=True)
         page = browser.new_page()
         page.goto(ENDPOINTS["hashicorp"]["careers_url"], wait_until="domcontentloaded", timeout=60000)

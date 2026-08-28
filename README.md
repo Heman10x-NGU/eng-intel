@@ -83,7 +83,7 @@ Browser bonus: scored rows in `artifacts/scrape_accuracy.json`. Selector and a11
 
 **Agent cost basis:** `cost_usd` sums token counts from DeepSeek API `usage` fields captured in `ChatDeepSeekJSON`, priced at DeepSeek V4 off-peak rates when browser-use's `total_cost` is zero.
 
-Run: `make browser-oracle` (after `make browser-a11y` and `make browser-agent` with `DEEPSEEK_API_KEY` in `.env`).
+Run: `make browser-oracle` (after `make browser-a11y` and `make browser-agent` with `DEEPSEEK_API_KEY` in `.env`). HashiCorp CloakBrowser scrape: `pip install '.[browser]'` then `make browser-cloak`.
 
 ## Supabase remote-engineering rule (Q3)
 

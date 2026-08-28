@@ -11,3 +11,6 @@ dist/
 build/
 .pytest_cache/
 BUILD_REPORT.md
+
+# agent debug output from browser tier runs
+artifacts/*.log

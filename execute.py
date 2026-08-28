@@ -259,6 +259,112 @@ def _synthesize_compare(chunks: list[dict]) -> str:
         return f"{fallback}\n\n(Model synthesis unavailable; extractive comparison shown above.)"
 
 
+def _op_count(rows: list[sqlite3.Row], plan: QueryPlan) -> tuple[str, list, dict[str, Any], str]:
+    by_company: dict[str, int] = {}
+    for r in rows:
+        by_company[r["company"]] = by_company.get(r["company"], 0) + 1
+    total = len(rows)
+    aggregates = {"total": total, "by_company": by_company}
+    parts = [f"{total} total"]
+    for c, n in sorted(by_company.items()):
+        parts.append(f"{c} {n}")
+    answer = f"{' '.join(parts)} matching documents."
+    if plan.keyword:
+        answer = f"{total} postings mention {plan.keyword} (" + ", ".join(f"{c} {n}" for c, n in sorted(by_company.items())) + ")."
+    return answer, rows, aggregates, ""
+
+
+def _op_list(
+    rows: list[sqlite3.Row],
+    plan: QueryPlan,
+    filter_notes: list[str],
+    coverage_note: str | None,
+) -> tuple[str, list, dict[str, Any], str]:
+    total_count = len(rows)
+    display_rows = rows[: plan.limit]
+    aggregates = {"count": total_count}
+    answer = f"{total_count} roles found."
+    if filter_notes:
+        answer += f" ({'; '.join(filter_notes)})"
+    if coverage_note:
+        answer += f" {coverage_note}"
+    return answer, display_rows, aggregates, ""
+
+
+def _op_rank(
+    rows: list[sqlite3.Row],
+    plan: QueryPlan,
+    coverage_note: str | None,
+    since: date | None,
+) -> tuple[str, list, dict[str, Any], str]:
+    if plan.source_types == ["repo_activity"]:
+        scores = []
+        for r in rows:
+            extra = json.loads(r["extra_json"] or "{}")
+            scores.append((r["company"], extra.get("events_7d", 0), extra))
+        scores.sort(key=lambda x: x[1], reverse=True)
+        aggregates = {"ranking": {c: s for c, s, _ in scores}}
+        if scores:
+            top = scores[0]
+            answer = (
+                f"{top[0]} leads with {top[1]} push+PR events in 7 days "
+                f"(push {top[2].get('push_events',0)}, pr {top[2].get('pr_events',0)})."
+            )
+        else:
+            answer = "No repo activity rows."
+        return answer, rows, aggregates, ""
+
+    by_company: dict[str, int] = {}
+    for r in rows:
+        by_company[r["company"]] = by_company.get(r["company"], 0) + 1
+    ranking = sorted(by_company.items(), key=lambda x: x[1], reverse=True)
+    aggregates = {"ranking": dict(ranking)}
+    if ranking:
+        winner, count = ranking[0]
+        answer = f"{winner} leads with {count} matching blog posts"
+        if since:
+            answer += f" since {since.isoformat()}"
+        answer += "."
+    else:
+        answer = "No matching blog posts."
+    if coverage_note:
+        answer += f" Caveat: {coverage_note}"
+    return answer, rows, aggregates, ""
+
+
+def _op_compare(rows: list[sqlite3.Row], plan: QueryPlan) -> tuple[str, list, dict[str, Any], str]:
+    if plan.topic:
+        scored = _retrieve_compare_topic(rows, plan, plan.topic)
+        chunks = []
+        for score, row in scored:
+            d = dict(row)
+            d["retrieval_score"] = round(score, 3)
+            chunks.append(d)
+    else:
+        chunk_rows = rows[: plan.limit]
+        chunks = _rows_to_dicts(chunk_rows)
+    aggregates = {"chunks": len(chunks)}
+    model_text = _synthesize_compare(chunks)
+    return "", chunks, aggregates, model_text
+
+
+def _op_timeline(
+    rows: list[sqlite3.Row],
+    plan: QueryPlan,
+    coverage_note: str | None,
+) -> tuple[str, list, dict[str, Any], str]:
+    total_count = len(rows)
+    display_rows = rows[: plan.limit]
+    aggregates = {"count": total_count, "showing": len(display_rows)}
+    preview = ", ".join(_truncate_title(r["title"]) for r in display_rows[:5])
+    answer = f"{total_count} items in window, showing {len(display_rows)}. Recent: {preview}"
+    if coverage_note:
+        n = len([p for p in coverage_note.split(";") if p.strip()])
+        label = "caveat" if n == 1 else "caveats"
+        answer += f" {n} coverage {label} — see panel."
+    return answer, display_rows, aggregates, ""
+
+
 def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
     if plan.op == "refuse":
         return ExecuteResult(
@@ -326,99 +432,22 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
     if plan.topic and plan.op != "compare":
         rows = _filter_rows_topic(rows, plan.topic)
 
-    aggregates: dict[str, Any] = {}
-    model_text = ""
-    chunks: list[dict] = []
-
     if plan.op == "count":
-        by_company: dict[str, int] = {}
-        for r in rows:
-            by_company[r["company"]] = by_company.get(r["company"], 0) + 1
-        total = len(rows)
-        aggregates = {"total": total, "by_company": by_company}
-        parts = [f"{total} total"]
-        for c, n in sorted(by_company.items()):
-            parts.append(f"{c} {n}")
-        answer = f"{' '.join(parts)} matching documents."
-        if plan.keyword:
-            answer = f"{total} postings mention {plan.keyword} (" + ", ".join(f"{c} {n}" for c, n in sorted(by_company.items())) + ")."
-
+        answer, rows, aggregates, model_text = _op_count(rows, plan)
     elif plan.op == "list":
-        total_count = len(rows)
-        display_rows = rows[: plan.limit]
-        rows = display_rows
-        aggregates = {"count": total_count}
-        answer = f"{total_count} roles found."
-        if filter_notes:
-            answer += f" ({'; '.join(filter_notes)})"
-        if coverage_note:
-            answer += f" {coverage_note}"
-
+        answer, rows, aggregates, model_text = _op_list(rows, plan, filter_notes, coverage_note)
     elif plan.op == "rank":
-        if plan.source_types == ["repo_activity"]:
-            scores = []
-            for r in rows:
-                extra = json.loads(r["extra_json"] or "{}")
-                scores.append((r["company"], extra.get("events_7d", 0), extra))
-            scores.sort(key=lambda x: x[1], reverse=True)
-            aggregates = {"ranking": {c: s for c, s, _ in scores}}
-            if scores:
-                top = scores[0]
-                answer = (
-                    f"{top[0]} leads with {top[1]} push+PR events in 7 days "
-                    f"(push {top[2].get('push_events',0)}, pr {top[2].get('pr_events',0)})."
-                )
-            else:
-                answer = "No repo activity rows."
-        else:
-            by_company: dict[str, int] = {}
-            for r in rows:
-                by_company[r["company"]] = by_company.get(r["company"], 0) + 1
-            ranking = sorted(by_company.items(), key=lambda x: x[1], reverse=True)
-            aggregates = {"ranking": dict(ranking)}
-            if ranking:
-                winner, count = ranking[0]
-                answer = f"{winner} leads with {count} matching blog posts"
-                if since:
-                    answer += f" since {since.isoformat()}"
-                answer += "."
-            else:
-                answer = "No matching blog posts."
-            if coverage_note:
-                answer += f" Caveat: {coverage_note}"
-
+        answer, rows, aggregates, model_text = _op_rank(rows, plan, coverage_note, since)
     elif plan.op == "compare":
-        if plan.topic:
-            scored = _retrieve_compare_topic(rows, plan, plan.topic)
-            chunks = []
-            for score, row in scored:
-                d = dict(row)
-                d["retrieval_score"] = round(score, 3)
-                chunks.append(d)
-        else:
-            chunk_rows = rows[: plan.limit]
-            chunks = _rows_to_dicts(chunk_rows)
-        rows = chunks
-        aggregates = {"chunks": len(chunks)}
-        answer = ""
-        model_text = _synthesize_compare(chunks)
-
+        answer, rows, aggregates, model_text = _op_compare(rows, plan)
     elif plan.op == "timeline":
-        total_count = len(rows)
-        display_rows = rows[: plan.limit]
-        rows = display_rows
-        aggregates = {"count": total_count, "showing": len(display_rows)}
-        preview = ", ".join(_truncate_title(r["title"]) for r in display_rows[:5])
-        answer = f"{total_count} items in window, showing {len(display_rows)}. Recent: {preview}"
-        if coverage_note:
-            n = len([p for p in coverage_note.split(";") if p.strip()])
-            label = "caveat" if n == 1 else "caveats"
-            answer += f" {n} coverage {label} — see panel."
+        answer, rows, aggregates, model_text = _op_timeline(rows, plan, coverage_note)
     else:
         answer = "Unsupported operation."
+        aggregates = {}
         model_text = ""
 
-    out_rows = chunks if plan.op == "compare" else _rows_to_dicts(rows)
+    out_rows = rows if plan.op == "compare" else _rows_to_dicts(rows)
     return ExecuteResult(
         answer=answer,
         rows=out_rows,

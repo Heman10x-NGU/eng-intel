@@ -62,6 +62,16 @@ COMPANY_ALIASES = {
     "hashi": "hashicorp",
 }
 
+REFUSAL_HELP = (
+    "Supported questions count jobs or blogs, list roles, rank companies, "
+    "compare messaging, or show a recent-content timeline. "
+    "Example: How many job postings across these companies mention Rust?"
+)
+
+
+def _refuse(reason: str) -> QueryPlan:
+    return QueryPlan(op="refuse", refuse_reason=f"{reason} {REFUSAL_HELP}")
+
 
 def _detect_companies(q: str) -> list[str]:
     found = []
@@ -148,9 +158,19 @@ def _detect_filters(q: str) -> dict[str, Any]:
 
 def rule_fill(question: str) -> QueryPlan:
     q = question.strip()
-    op = _detect_op(q) or "count"
+    if not q:
+        return _refuse("Question is empty.")
+    op = _detect_op(q)
+    if op is None:
+        return _refuse("Could not map this question to jobs, blogs, GitHub activity, or a comparison.")
     if op == "refuse":
-        return QueryPlan(op="refuse", refuse_reason="Question is outside corpus scope (not about jobs, blogs, or GitHub activity).")
+        return QueryPlan(
+            op="refuse",
+            refuse_reason=(
+                "Question is outside corpus scope (not about jobs, blogs, or GitHub activity). "
+                + REFUSAL_HELP
+            ),
+        )
 
     companies = _detect_companies(q)
     source_types = _detect_source_types(q, op)
@@ -173,6 +193,9 @@ def rule_fill(question: str) -> QueryPlan:
             companies = ["vercel", "supabase"]
         source_types = source_types or ["blog"]
         topic = topic or "databases"
+
+    if op in ("count", "list", "rank", "timeline") and not source_types:
+        return _refuse("Could not tell whether this is about jobs, blogs, or GitHub activity.")
 
     return QueryPlan(
         op=op,

@@ -14,7 +14,7 @@ from config import COMPANIES, TOPIC_KEYWORDS
 from coverage import check_coverage
 from db import FTS5_AVAILABLE
 from normalize import _strip_html
-from plan import QueryPlan
+from plan import QueryPlan, REFUSAL_HELP
 
 SEARCH_MODE = "lexical"  # vector path intentionally unimplemented
 
@@ -263,6 +263,20 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
     if plan.op == "refuse":
         return ExecuteResult(
             answer=plan.refuse_reason or "Cannot answer this question.",
+            rows=[],
+            citations=[],
+            aggregates={},
+            coverage_note=None,
+            sql="",
+            sql_params=[],
+        )
+
+    if plan.op in ("count", "list", "rank", "timeline") and not plan.source_types:
+        return ExecuteResult(
+            answer=(
+                "Could not tell whether this is about jobs, blogs, or GitHub activity. "
+                + REFUSAL_HELP
+            ),
             rows=[],
             citations=[],
             aggregates={},

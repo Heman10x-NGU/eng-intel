@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -56,6 +57,9 @@ def _check_expect_rendered(conn, question: str, expect_rendered: dict) -> list[s
     for needle in expect_rendered.get("answer_not_contains", []):
         if needle in answer:
             errs.append(f"answer contains forbidden {needle!r}")
+
+    if expect_rendered.get("no_digit_total") and re.search(r"\d+ total", answer):
+        errs.append("refused answer contains a digit followed by ' total'")
 
     if "min_ranking_nonzero" in expect_rendered:
         ranking = result.aggregates.get("ranking", {})

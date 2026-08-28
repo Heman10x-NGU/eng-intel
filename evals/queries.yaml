@@ -137,6 +137,28 @@
   expect_plan:
     op: refuse
 
+- id: q_refuse_empty
+  q: ""
+  expect_plan:
+    op: refuse
+  expect_rendered:
+    no_digit_total: true
+
+- id: q_refuse_gibberish
+  q: "asdkjhasd qwe zxc"
+  expect_plan:
+    op: refuse
+
+- id: q_refuse_offtopic
+  q: "who is the CEO of Vercel?"
+  expect_plan:
+    op: refuse
+
+- id: q_refuse_no_source
+  q: "how many things are there?"
+  expect_plan:
+    op: refuse
+
 - id: q_list_vercel_jobs
   q: "show open jobs at vercel"
   expect_plan:

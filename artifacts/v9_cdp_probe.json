@@ -1,0 +1,23 @@
+{
+  "probe": "CloakBrowser CDP + browser-use attach",
+  "date": "2026-08-29",
+  "cloak_cdp": {
+    "http": "http://127.0.0.1:9333/json/version",
+    "browser": "Chrome/145.0.7632.109",
+    "webSocketDebuggerUrl_live": true
+  },
+  "playwright_connect_over_cdp": {
+    "venv": "~/.cloak-venv",
+    "title": "Search jobs | IBM Careers",
+    "final_url": "https://www.ibm.com/careers/search?q=hashicorp",
+    "gate_title": "IBM Careers — wall cleared for a second CDP client"
+  },
+  "browser_use_Browser": {
+    "venv": "browser-use/.venv",
+    "cdp_url": "http://127.0.0.1:9333",
+    "status": "hung",
+    "observed": "CDP WebSocket message handler exited; reconnect loop; start()/navigate_to() never returned (killed after ~3 min, then again after 60s with asyncio.wait_for)",
+    "gate": "fail"
+  },
+  "decision": "STOP after V9-1. browser-use cannot hold the CloakBrowser CDP session, so the agent loop cannot drive the stealth browser. CloakBrowser stealth scrape remains the method of record for HashiCorp careers."
+}

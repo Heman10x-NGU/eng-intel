@@ -56,10 +56,12 @@ Rationale: indexing IBM Consulting clearance roles as HashiCorp jobs would pollu
 
 ---
 
-## Agent discovery (optional tier)
+## Agent discovery — CDP bridge (2026-08-29)
 
-Task: *"Find HashiCorp's current open job postings."*
+Tried driving CloakBrowser from browser-use over Chrome DevTools Protocol (**CDP**) — the wire protocol a debugger uses to control Chromium — because browser-use has no stealth flag of its own.
 
-Expected path: hashicorp.com → careers → bot check → IBM keyword search → report dead end.
+1. CloakBrowser launched with `--remote-debugging-port=9333`. `http://127.0.0.1:9333/json/version` returned a live `webSocketDebuggerUrl`.
+2. Playwright `connect_over_cdp` to that port navigated `hashicorp.com/careers/open-positions` and landed on **Search jobs | IBM Careers** (`ibm.com/careers/search?q=hashicorp`). The wall is still clearable over CDP.
+3. `browser_use.Browser(cdp_url="http://127.0.0.1:9333")` did **not** hold the session: the CDP websocket closed immediately, browser-use entered a reconnect loop, and `start()` / `navigate_to()` never returned (killed after minutes; `asyncio.wait_for` did not recover).
 
-Artifact: `fixtures/hashicorp_agent_trace.json` (if browser-use optional group installed).
+**Conclusion:** attaching browser-use's session manager over CDP fights CloakBrowser's own CDP ownership. The stealth patches survive a Playwright CDP client; they do not survive (or cannot be used by) the browser-use agent loop. CloakBrowser remains the HashiCorp method of record. Probe scripts: `scripts/v9_cloak_cdp_launch.py`, `scripts/v9_cdp_attach_probe.py`. Result: `artifacts/v9_cdp_probe.json`. No agent discovery run, zero job rows inserted.

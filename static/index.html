@@ -144,33 +144,44 @@
     async function run() {
       const question = document.getElementById('q').value.trim();
       if (!question) return;
-      const res = await fetch('/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question })
-      });
-      const data = await res.json();
-      document.getElementById('results').hidden = false;
-      document.getElementById('answer').textContent = data.answer;
-      document.getElementById('plan').textContent = JSON.stringify(data.plan, null, 2);
-      document.getElementById('sql').textContent = data.sql + '\n' + JSON.stringify(data.sql_params);
-      document.getElementById('coverage').textContent = data.coverage || 'All companies cover the requested window for this source.';
-      const cit = document.getElementById('citations');
-      cit.innerHTML = '';
-      (data.citations || []).slice(0, 30).forEach(c => {
-        const li = document.createElement('li');
-        const a = document.createElement('a');
-        a.href = c.url; a.target = '_blank'; a.rel = 'noopener';
-        const score = c.retrieval_score != null ? ` [score ${c.retrieval_score}]` : '';
-        a.textContent = (c.company || '') + ': ' + (c.title || c.url) + score;
-        li.appendChild(a);
-        cit.appendChild(li);
-      });
-      const g = data.guard || {};
-      const parts = [];
-      if (g.stripped_urls?.length) parts.push('Stripped URLs: ' + g.stripped_urls.join(', '));
-      if (g.stripped_numbers?.length) parts.push('Stripped numbers: ' + g.stripped_numbers.join(', '));
-      document.getElementById('guard').textContent = parts.join(' | ');
+      const results = document.getElementById('results');
+      const answerEl = document.getElementById('answer');
+      results.hidden = false;
+      try {
+        const res = await fetch('/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+        if (!res.ok) {
+          const body = await res.text();
+          answerEl.textContent = `Request failed (${res.status}): ${body.slice(0, 400)}`;
+          return;
+        }
+        const data = await res.json();
+        answerEl.textContent = data.answer;
+        document.getElementById('plan').textContent = JSON.stringify(data.plan, null, 2);
+        document.getElementById('sql').textContent = data.sql + '\n' + JSON.stringify(data.sql_params);
+        document.getElementById('coverage').textContent = data.coverage || 'All companies cover the requested window for this source.';
+        const cit = document.getElementById('citations');
+        cit.innerHTML = '';
+        (data.citations || []).slice(0, 30).forEach(c => {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = c.url; a.target = '_blank'; a.rel = 'noopener';
+          const score = c.retrieval_score != null ? ` [score ${c.retrieval_score}]` : '';
+          a.textContent = (c.company || '') + ': ' + (c.title || c.url) + score;
+          li.appendChild(a);
+          cit.appendChild(li);
+        });
+        const g = data.guard || {};
+        const parts = [];
+        if (g.stripped_urls?.length) parts.push('Stripped URLs: ' + g.stripped_urls.join(', '));
+        if (g.stripped_numbers?.length) parts.push('Stripped numbers: ' + g.stripped_numbers.join(', '));
+        document.getElementById('guard').textContent = parts.join(' | ');
+      } catch (err) {
+        answerEl.textContent = `Request failed: ${err.message || err}`;
+      }
     }
     document.getElementById('ask').onclick = run;
     document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });

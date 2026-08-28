@@ -5,6 +5,7 @@ PYTHON ?= .venv/bin/python
 install:
 	/Users/heman10x/.local/bin/python3.11 -m venv .venv --upgrade-deps
 	.venv/bin/pip install -r requirements.txt
+	.venv/bin/playwright install chromium
 
 seed:
 	rm -f data.db

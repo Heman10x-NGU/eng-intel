@@ -20,6 +20,7 @@ make seed    # builds data.db from fixtures — no network, no API key
 make run     # http://127.0.0.1:8000
 make test    # unit tests (degraded ingest)
 make eval    # 32 plan + result + rendered-answer cases
+# Browser methods only: .venv/bin/playwright install chromium  (also in `make install`)
 ```
 
 Optional live refresh: `INGEST_LIVE=1 make ingest` (needs network; `GITHUB_TOKEN` optional).

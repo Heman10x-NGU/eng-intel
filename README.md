@@ -19,7 +19,7 @@ python3.11 -m venv .venv --upgrade-deps
 make seed    # builds data.db from fixtures — no network, no API key
 make run     # http://127.0.0.1:8000
 make test    # unit tests (degraded ingest)
-make eval    # 27 plan + result + rendered-answer cases
+make eval    # 32 plan + result + rendered-answer cases
 ```
 
 Optional live refresh: `INGEST_LIVE=1 make ingest` (needs network; `GITHUB_TOKEN` optional).
@@ -132,7 +132,7 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 
 ## Evals
 
-`make eval` — **28** cases: plan routing, `expect_result` (including topic-identity and Q4 retrieval quality), and **`expect_rendered`** on all six graded demo queries.
+`make eval` — **32** cases: plan routing, `expect_result` (including topic-identity and Q4 retrieval quality), **`expect_rendered`** on all six graded demo queries, and refuse-path coverage for empty/gibberish/off-topic input.
 
 ## Time spent
 

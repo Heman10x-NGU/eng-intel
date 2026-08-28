@@ -72,3 +72,15 @@ Tried driving CloakBrowser from browser-use over Chrome DevTools Protocol (**CDP
 3. `browser_use.Browser(cdp_url="http://127.0.0.1:9333")` did **not** hold the session: the CDP websocket closed immediately, browser-use entered a reconnect loop, and `start()` / `navigate_to()` never returned (killed after minutes; `asyncio.wait_for` did not recover).
 
 **Conclusion:** attaching browser-use's session manager over CDP fights CloakBrowser's own CDP ownership. That is a real composition limit. It is **not** a blocker for HashiCorp discovery: stock Chromium clears the JS challenge, so the agent can launch its own browser (see V10). Probe scripts: `scripts/v9_cloak_cdp_launch.py`, `scripts/v9_cdp_attach_probe.py`. Result: `artifacts/v9_cdp_probe.json`.
+
+---
+
+## Agent discovery — own Chromium, no CDP (2026-08-29)
+
+Task: *"Find HashiCorp's current open job postings. Start at hashicorp.com. Report what you find, including where the trail leads and whether the postings are genuinely HashiCorp roles."*
+
+browser-use launched its own stock Chromium (no CloakBrowser, no `cdp_url`). **25 steps**, **111.27s**, **$0.051357** (DeepSeek API `usage` at V4 off-peak rates). Narrative only — no structured job rows, so no oracle score.
+
+Agent conclusion (verbatim): HashiCorp careers / Open positions redirect to IBM careers; a HashiCorp search returned three IBM postings (Senior Red Hat Architect, AWS Cloud Full Stack Engineer, Senior Front End Developer); the first is an IBM Consulting Federal role that mentions Terraform/Vault, not a HashiCorp-owned role; no genuine HashiCorp postings found.
+
+That matches the CloakBrowser scrape: same dead end, two independent methods, **zero rows** inserted. Trace: `fixtures/hashicorp_agent_discovery.json`.

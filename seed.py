@@ -16,7 +16,8 @@ from normalize import hashicorp_jobs_excluded, write_run
 def seed_hashicorp_jobs(conn) -> None:
     note = (
         "careers redirects to ibm.com/careers/search?q=hashicorp; "
-        "3 hits are IBM Consulting roles matching the string, not HashiCorp postings — excluded deliberately"
+        "3 hits are IBM Consulting roles matching the string, not HashiCorp postings — excluded deliberately. "
+        "Agent trace: fixtures/hashicorp_agent_discovery.json"
     )
     run = hashicorp_jobs_excluded(note)
     write_run(conn, run)

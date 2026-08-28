@@ -10,8 +10,10 @@ from pathlib import Path
 
 OUT_PATH = Path("fixtures/vercel_agent_discovery.json")
 REPO = Path(__file__).resolve().parent
+# browser-use lives in its own virtualenv (Python 3.12, 37 dependencies) so it never
+# enters this project's requirements. Point BROWSER_USE_PYTHON at that interpreter.
 DEFAULT_BROWSER_USE_PYTHON = Path(
-    "/Users/heman10x/Downloads/claude_dev/oss-repos/scraping-and-trends/browser-use/browser-use/.venv/bin/python"
+    os.environ.get("BROWSER_USE_PYTHON", "../browser-use/.venv/bin/python")
 )
 AGENT_TIMEOUT_S = 90 * 60
 

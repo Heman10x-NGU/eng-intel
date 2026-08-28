@@ -1,9 +1,11 @@
 .PHONY: seed run ingest eval test browser-oracle browser-cloak
 
 PYTHON ?= .venv/bin/python
+# Override if python3.11 is not on PATH: make install PYTHON311=/path/to/python3.11
+PYTHON311 ?= python3.11
 
 install:
-	/Users/heman10x/.local/bin/python3.11 -m venv .venv --upgrade-deps
+	$(PYTHON311) -m venv .venv --upgrade-deps
 	.venv/bin/pip install -r requirements.txt
 	.venv/bin/playwright install chromium
 

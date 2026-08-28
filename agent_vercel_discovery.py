@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""browser-use worker — run only from the browser-use venv (Python 3.12)."""
+"""browser-use worker: run as a process under the browser-use venv (Python 3.12).
+
+Pure parsing helpers (_parse_jobs_from_text and URL normalize) are importable
+from the main 3.11 venv because browser-use is imported lazily inside functions.
+"""
 
 from __future__ import annotations
 

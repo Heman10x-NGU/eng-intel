@@ -427,7 +427,13 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
             else:
                 rows = _filter_rows_keyword(rows, plan.keyword)
         else:
-            raise NotImplementedError("vector search not implemented")
+            # SEARCH_MODE is lexical by design. This branch is the extension
+            # point where embeddings would attach if search_mode were ever
+            # switched to "vector" — not unfinished work.
+            raise NotImplementedError(
+                "search_mode is lexical by design; this is the extension "
+                "point for embeddings, which are not attached."
+            )
 
     if plan.topic and plan.op != "compare":
         rows = _filter_rows_topic(rows, plan.topic)

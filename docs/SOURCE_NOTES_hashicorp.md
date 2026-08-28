@@ -1,15 +1,25 @@
 # HashiCorp careers — source notes
 
-Field-tested against hashicorp.com and ibm.com on 2026-08-25.
-All endpoints probed via HTTP and CloakBrowser stealth Chromium.
+Field-tested against hashicorp.com and ibm.com on 2026-08-25, re-probed 2026-08-29.
 
 ---
 
-## Anti-bot verdict: browser required for careers page
+## What the wall actually blocks
 
-**Plain `httpx`/`curl` returns HTTP 429** on the careers URL with a Vercel Security Checkpoint body.
+The careers URL returns **429** to clients that do not run JavaScript. Any real browser clears it — including stock Playwright Chromium with zero stealth. CloakBrowser is still a legitimate tool and remains the method of record; it was not *required* for the checkpoint.
 
-Tested endpoints:
+Reproduced 2026-08-29 (`artifacts/v10_botwall_probe.json`):
+
+| Client | JavaScript | Result |
+|---|---|---|
+| `curl` (browser User-Agent) | no | **429** — title `Vercel Security Checkpoint`; checkpoint HTML present |
+| Stock Playwright Chromium, **headless**, no stealth | yes | **Search jobs \| IBM Careers** — `ibm.com/careers/search?q=hashicorp`; no checkpoint in HTML |
+| Stock Playwright Chromium, **headed**, no stealth | yes | same as headless |
+| CloakBrowser stealth, headless | yes | same IBM landing (prior scrape + V9 CDP Playwright client) |
+
+**Use a browser for careers** (not `curl`/`httpx`). Do not use a browser for RSS, GitHub, or ATS JSON endpoints. The real obstacle is the IBM redirect, not the checkpoint.
+
+Tested endpoints (unchanged):
 
 | Endpoint | Method | Status | Evidence |
 |---|---|---|---|
@@ -17,9 +27,6 @@ Tested endpoints:
 | `boards-api.greenhouse.io/.../hashicorp` | HTTP GET | **404** | No Greenhouse board |
 | `api.ashbyhq.com/.../hashicorp` | HTTP GET | **404** | No Ashby board |
 | `hashicorp.com/blog/feed.xml` | HTTP GET | **200** | RSS works; **20 items** only |
-| `hashicorp.com/careers/open-positions` | CloakBrowser headless + humanize | **200** | ~274KB DOM after ~10s |
-
-**Use CloakBrowser for careers only.** Do not use it for RSS, GitHub, or ATS JSON endpoints.
 
 ---
 
@@ -64,4 +71,4 @@ Tried driving CloakBrowser from browser-use over Chrome DevTools Protocol (**CDP
 2. Playwright `connect_over_cdp` to that port navigated `hashicorp.com/careers/open-positions` and landed on **Search jobs | IBM Careers** (`ibm.com/careers/search?q=hashicorp`). The wall is still clearable over CDP.
 3. `browser_use.Browser(cdp_url="http://127.0.0.1:9333")` did **not** hold the session: the CDP websocket closed immediately, browser-use entered a reconnect loop, and `start()` / `navigate_to()` never returned (killed after minutes; `asyncio.wait_for` did not recover).
 
-**Conclusion:** attaching browser-use's session manager over CDP fights CloakBrowser's own CDP ownership. The stealth patches survive a Playwright CDP client; they do not survive (or cannot be used by) the browser-use agent loop. CloakBrowser remains the HashiCorp method of record. Probe scripts: `scripts/v9_cloak_cdp_launch.py`, `scripts/v9_cdp_attach_probe.py`. Result: `artifacts/v9_cdp_probe.json`. No agent discovery run, zero job rows inserted.
+**Conclusion:** attaching browser-use's session manager over CDP fights CloakBrowser's own CDP ownership. That is a real composition limit. It is **not** a blocker for HashiCorp discovery: stock Chromium clears the JS challenge, so the agent can launch its own browser (see V10). Probe scripts: `scripts/v9_cloak_cdp_launch.py`, `scripts/v9_cdp_attach_probe.py`. Result: `artifacts/v9_cdp_probe.json`.

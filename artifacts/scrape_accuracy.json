@@ -22,7 +22,7 @@
       },
       "wall_clock_s": 1.0,
       "cost_usd": 0.0,
-      "beats_bot_walls": false,
+      "clears_js_challenge": false,
       "missed_sample": [],
       "invented_sample": []
     },
@@ -47,7 +47,7 @@
       },
       "wall_clock_s": 4.35,
       "cost_usd": 0.0,
-      "beats_bot_walls": false,
+      "clears_js_challenge": true,
       "missed_sample": [
         "https://job-boards.greenhouse.io/vercel/jobs/5039945004",
         "https://job-boards.greenhouse.io/vercel/jobs/5579560004",
@@ -78,7 +78,7 @@
       },
       "wall_clock_s": 83.11,
       "cost_usd": 0.00965,
-      "beats_bot_walls": false,
+      "clears_js_challenge": true,
       "missed_sample": [
         "https://job-boards.greenhouse.io/vercel/jobs/5039945004",
         "https://job-boards.greenhouse.io/vercel/jobs/5579560004",
@@ -109,7 +109,7 @@
       },
       "wall_clock_s": 38.89,
       "cost_usd": 0.018671,
-      "beats_bot_walls": false,
+      "clears_js_challenge": true,
       "missed_sample": [],
       "invented_sample": [
         "https://job-boards.greenhouse.io/vercel/jobs/5649459004"
@@ -139,7 +139,7 @@
       },
       "wall_clock_s": 26.98,
       "cost_usd": 0.007455,
-      "beats_bot_walls": false,
+      "clears_js_challenge": true,
       "missed_sample": [
         "https://job-boards.greenhouse.io/vercel/jobs/5179639004",
         "https://job-boards.greenhouse.io/vercel/jobs/5428982004",
@@ -170,7 +170,7 @@
       },
       "wall_clock_s": 16.15,
       "cost_usd": 0.001571,
-      "beats_bot_walls": false,
+      "clears_js_challenge": true,
       "missed_sample": [
         "https://job-boards.greenhouse.io/vercel/jobs/5179639004",
         "https://job-boards.greenhouse.io/vercel/jobs/5428982004",
@@ -192,8 +192,8 @@
       "fields_accuracy": null,
       "wall_clock_s": 10,
       "cost_usd": 0.0,
-      "beats_bot_walls": true,
-      "note": "HashiCorp bot wall cleared; IBM keyword hits excluded \u2014 see docs/SOURCE_NOTES_hashicorp.md"
+      "clears_js_challenge": true,
+      "note": "HashiCorp returns 429 to non-JS clients; any Chromium clears it. IBM keyword hits excluded \u2014 see docs/SOURCE_NOTES_hashicorp.md"
     }
   ]
 }

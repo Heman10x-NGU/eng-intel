@@ -1,0 +1,37 @@
+{
+  "date": "2026-08-29",
+  "url": "https://www.hashicorp.com/careers/open-positions",
+  "probes": [
+    {
+      "client": "curl",
+      "javascript": false,
+      "http_status": 429,
+      "title": "Vercel Security Checkpoint",
+      "final_url": "https://www.hashicorp.com/careers/open-positions",
+      "checkpoint_in_html": true
+    },
+    {
+      "client": "stock Playwright Chromium",
+      "mode": "headless",
+      "javascript": true,
+      "title": "Search jobs | IBM Careers",
+      "final_url": "https://www.ibm.com/careers/search?q=hashicorp",
+      "checkpoint_in_html": false
+    },
+    {
+      "client": "stock Playwright Chromium",
+      "mode": "headed",
+      "javascript": true,
+      "title": "Search jobs | IBM Careers",
+      "final_url": "https://www.ibm.com/careers/search?q=hashicorp",
+      "checkpoint_in_html": false
+    },
+    {
+      "client": "CloakBrowser stealth",
+      "mode": "headless",
+      "javascript": true,
+      "title": "Search jobs | IBM Careers",
+      "note": "prior CloakBrowser scrape + V9 Playwright-over-CDP; same IBM landing"
+    }
+  ]
+}

@@ -131,7 +131,15 @@ def score_candidate(
         "fields_accuracy_normalized": fields_normalized,
         "wall_clock_s": wall_clock_s,
         "cost_usd": cost,
-        "beats_bot_walls": method == "cloakbrowser",
+        "clears_js_challenge": method
+        in {
+            "playwright-selectors",
+            "a11y-tree-deepseek",
+            "browser-use-agent",
+            "browser-use-agent-fc-flash",
+            "browser-use-agent-fc-deepseek-chat",
+            "cloakbrowser",
+        },
         "missed_sample": missed,
         "invented_sample": invented,
     }
@@ -240,8 +248,8 @@ def main() -> None:
             "fields_accuracy": None,
             "wall_clock_s": 10,
             "cost_usd": 0.0,
-            "beats_bot_walls": True,
-            "note": "HashiCorp bot wall cleared; IBM keyword hits excluded — see docs/SOURCE_NOTES_hashicorp.md",
+            "clears_js_challenge": True,
+            "note": "HashiCorp returns 429 to non-JS clients; any Chromium clears it. IBM keyword hits excluded — see docs/SOURCE_NOTES_hashicorp.md",
         }
     )
 

@@ -54,22 +54,22 @@ A recruiter, investor, or engineer tracking these three companies wants one plac
 ## Source choices and tradeoffs
 
 - **Vercel + Supabase jobs:** public ATS JSON — full descriptions, no browser needed.
-- **HashiCorp jobs:** bot wall → CloakBrowser works, but redirect yields IBM keyword hits → **not indexed**.
+- **HashiCorp jobs:** the careers page returns **429** to non-JavaScript clients (`curl`). Any real browser clears it, including stock Chromium; CloakBrowser was used because it was already in the stack. The blocker was the **IBM keyword-search redirect**, not the wall — those hits are **not indexed**.
 - **Blogs:** RSS; feed depth differs (Vercel 2016→, Supabase 2021→, HashiCorp ~2 months).
 - **GitHub:** org events API (first page); token optional for rate limits.
 
 Browser bonus: scored rows in `artifacts/scrape_accuracy.json`. Selector and a11y methods use the **full board** (87 jobs); the agent task asked for **engineering roles only** (15 in ground truth), so its primary row uses that scope. Raw string field scores understate cross-page extractors — see normalized columns below.
 
-| Method | Scope | Found | Title | Location (norm) | Dept | Wall clock | Cost | Tier |
+| Method | Scope | Found | Title | Loc (norm) | Dept | Wall clock | Cost | Clears JS challenge |
 |---|---|---|---|---|---|---|---|---|
-| Greenhouse API | full board | 87/87 | 1.00 | 1.00 | 1.00 | ~1s | $0 | baseline |
-| Playwright selectors | full board | 50/87 | 0.90 | 1.00 | 1.00 | 4.4s | $0 | solid |
-| CloakBrowser | full board | — | — | — | — | ~10s | $0 | beats bot wall |
-| a11y tree + DeepSeek | full board | 50/87 | 1.00 | 1.00 | 1.00 | 83s | ~$0.01 | stronger |
-| **browser-use agent** | **engineering only** | **15/15** | **1.00** | **1.00** | **1.00** | **39s** | **~$0.02** | **strongest** |
-| browser-use agent (also) | full board | 16/87 | 1.00 | 1.00† | 0.94† | 39s | ~$0.02 | — |
-| browser-use agent FC flash | engineering only | 0/15 | — | — | — | 27s | ~$0.007 | FC blocked |
-| browser-use agent FC deepseek-chat | engineering only | 0/15 | — | — | — | 16s | ~$0.002 | FC blocked |
+| Greenhouse API | full board | 87/87 | 1.00 | 1.00 | 1.00 | ~1s | $0 | no |
+| Playwright selectors | full board | 50/87 | 0.90 | 1.00 | 1.00 | 4.4s | $0 | yes |
+| CloakBrowser | full board | — | — | — | — | ~10s | $0 | yes |
+| a11y tree + DeepSeek | full board | 50/87 | 1.00 | 1.00 | 1.00 | 83s | ~$0.01 | yes |
+| **browser-use agent** | **engineering only** | **15/15** | **1.00** | **1.00** | **1.00** | **39s** | **~$0.02** | yes |
+| browser-use agent (also) | full board | 16/87 | 1.00 | 1.00† | 0.94† | 39s | ~$0.02 | yes |
+| browser-use agent FC flash | engineering only | 0/15 | — | — | — | 27s | ~$0.007 | yes |
+| browser-use agent FC deepseek-chat | engineering only | 0/15 | — | — | — | 16s | ~$0.002 | yes |
 
 †Per-field scores on the 16 URL-matched rows against the full board. Location exact-match is 0.00 because Greenhouse prefixes work-model tags (`Hybrid -`, `Remote -`) that `vercel.com/careers` renders separately; set comparison fixes this (1.00).
 
@@ -123,6 +123,7 @@ Eval pins Q3 at **18** rows, all `department=Engineering`.
 - GitHub activity uses one API page per org, not full 7-day pagination.
 - **Topic classification is keyword-based** (`config.TOPIC_KEYWORDS`), not embeddings or a model. The failure mode is matching **company identity** instead of subject — e.g. when `supabase` was in the `databases` keyword list, every Supabase post matched (100%). Vendor names are now forbidden in topic sets, and `data_quality_topic_identity` fails if any company hits 100% on a topic. Compare retrieval uses scored lexical ranking (title-weighted, length-normalized, top-k per company) — vectors would be the next step, not a missing foundation.
 - Compare answers without `ANTHROPIC_API_KEY` (or without `anthropic` installed) return a labeled extractive bullet list from retrieved posts — not synthesized prose.
+- I initially concluded HashiCorp's wall required stealth, having only tested `curl` and CloakBrowser. It does not. Stock Chromium clears it headless and headed. Corrected after testing plain Chromium.
 - browser-use agent: **15/15** engineering roles on the scoped task (oracle was dividing by 87); function-calling blocked by upstream browser-use issues [#3544](https://github.com/browser-use/browser-use/issues/3544) / [#2529](https://github.com/browser-use/browser-use/issues/2529), routed around with JSON-path subclass — traces in `fixtures/vercel_agent_*.json`.
 
 ## Another week

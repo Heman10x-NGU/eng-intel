@@ -24,6 +24,17 @@
     source_types: [job]
     keyword: python
 
+- id: q1_swap_golang
+  q: "how many job posting have golang"
+  expect_plan:
+    op: count
+    source_types: [job]
+    keyword: golang
+  expect_result:
+    total: 2
+    by_company:
+      vercel: 2
+
 - id: q2_spec
   q: "Which company has shipped the most blog posts about databases in the last 6 months?"
   expect_plan:

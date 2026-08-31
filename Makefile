@@ -14,7 +14,7 @@ seed:
 	INGEST_LIVE=0 $(PYTHON) seed.py
 
 run:
-	$(PYTHON) -m uvicorn app:app --host 127.0.0.1 --port 8000
+	$(PYTHON) -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 
 ingest:
 	INGEST_LIVE=1 $(PYTHON) seed.py

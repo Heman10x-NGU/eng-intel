@@ -122,17 +122,56 @@ def _detect_source_types(q: str, op: Op | None) -> list[str]:
     return types
 
 
+KEYWORD_STOPWORDS = {
+    "remote", "engineering", "these", "those", "this", "that", "all", "the",
+    "a", "an", "each", "both", "our", "their", "any", "full", "part", "contract",
+    "hybrid", "onsite", "databases", "database", "open", "recent", "new",
+    "active", "across", "companies", "company", "there", "here", "now", "total",
+    "how", "many", "much", "more", "most", "few", "fewer", "other", "such",
+    "what", "which", "who", "whom", "whose", "where", "when", "why",
+    "show", "list", "count", "post", "posts", "posting", "postings", "role",
+    "roles", "job", "jobs", "position", "positions", "available", "current",
+    "shipped", "come", "out", "published", "released", "done", "been",
+    "vercel", "supabase", "hashicorp", "hashi",
+}
+
+COMMON_TECH_KEYWORDS = {
+    "rust", "python", "golang", "go", "typescript", "javascript", "java",
+    "cpp", "c++", "c#", "csharp", "ruby", "swift", "kotlin", "elixir", "scala",
+    "react", "nextjs", "next.js", "vue", "svelte", "tailwind",
+    "postgres", "postgresql", "mysql", "redis", "kafka", "sqlite",
+    "kubernetes", "k8s", "docker", "terraform", "aws", "gcp", "azure",
+    "graphql", "grpc", "rest",
+}
+
+
 def _detect_keyword(q: str) -> str | None:
     low = q.lower()
-    m = re.search(r"\bmention(?:ing|s)?\s+(\w+)", low)
+
+    # 1. Direct match for known technologies (handles symbols like c#, c++, next.js)
+    for tech in sorted(COMMON_TECH_KEYWORDS, key=len, reverse=True):
+        escaped = re.escape(tech)
+        pat = rf"(?:\b|^){escaped}(?:\b|$|\s|[^\w])"
+        if re.search(pat, low):
+            return tech
+
+    # 2. Explicit mention / requirement phrasing: 'mentioning foo', 'requires foo', 'using foo'
+    m = re.search(
+        r"\b(?:mention(?:ing|s)?|need(?:ing|s)?|us(?:e|es|ing)|requir(?:e|es|ing))\s+([a-zA-Z0-9_\+#\.\-]+)",
+        low,
+    )
     if m:
-        return m.group(1)
-    m = re.search(r"\b(?:need|using|with)\s+(\w+)\b", low)
-    if m and m.group(1) not in ("remote", "engineering"):
-        return m.group(1)
-    for lang in ("rust", "python", "go", "typescript", "javascript", "java"):
-        if re.search(rf"\b{lang}\b", low):
-            return lang
+        cand = m.group(1).strip(".?,!")
+        if cand not in KEYWORD_STOPWORDS and len(cand) > 1:
+            return cand
+
+    # 3. Phrasing with 'with / for / have / has' followed by a valid non-stopword identifier
+    m2 = re.search(r"\b(?:with|for|have|has)\s+([a-zA-Z0-9_\+#\.\-]+)\b", low)
+    if m2:
+        cand = m2.group(1).strip(".?,!")
+        if cand not in KEYWORD_STOPWORDS and len(cand) > 1:
+            return cand
+
     return None
 
 
@@ -212,6 +251,26 @@ def rule_fill(question: str) -> QueryPlan:
     )
 
 
+def _unparsed_words(question: str, plan: QueryPlan) -> list[str]:
+    if plan.keyword or plan.topic:
+        return []
+    low = question.lower()
+    words = re.findall(r"\b[a-zA-Z0-9_\+#\.\-]+\b", low)
+    ignore = (
+        KEYWORD_STOPWORDS
+        | set(COMPANIES)
+        | {
+            "job", "jobs", "role", "roles", "posting", "postings", "position", "positions",
+            "blog", "blogs", "post", "posts", "github", "repo", "repos", "repository",
+            "mention", "mentions", "mentioning", "need", "needs", "using", "use", "with",
+            "in", "for", "have", "has", "are", "is", "be", "do", "does", "did", "corpus",
+            "content", "item", "items", "document", "documents", "data", "tell", "me",
+            "show", "list", "count", "rank", "compare", "timeline",
+        }
+    )
+    return [w for w in words if w not in ignore and len(w) > 1 and not w.isdigit()]
+
+
 def _missing_required(plan: QueryPlan) -> list[str]:
     missing = []
     if plan.op == "refuse":
@@ -225,42 +284,85 @@ def _missing_required(plan: QueryPlan) -> list[str]:
     return missing
 
 
-def llm_fill(question: str, plan: QueryPlan, missing: list[str]) -> QueryPlan:
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        return plan
-    try:
-        import anthropic
+def _call_llm_json(prompt: str) -> dict[str, Any] | None:
+    # 1. DeepSeek (primary)
+    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+    if deepseek_key:
+        try:
+            import httpx
 
-        client = anthropic.Anthropic(api_key=api_key)
-        prompt = f"""Fill only these missing QueryPlan slots as JSON. Temperature 0 rules apply.
+            resp = httpx.post(
+                "https://api.deepseek.com/chat/completions",
+                headers={"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0,
+                },
+                timeout=8.0,
+            )
+            if resp.status_code == 200:
+                text = resp.json()["choices"][0]["message"]["content"].strip()
+                if text.startswith("```"):
+                    text = re.sub(r"^```(?:json)?|```$", "", text, flags=re.MULTILINE).strip()
+                return json.loads(text)
+        except Exception:
+            pass
+
+    # 2. Anthropic (fallback)
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    if anthropic_key:
+        try:
+            import anthropic
+
+            client = anthropic.Anthropic(api_key=anthropic_key)
+            msg = client.messages.create(
+                model="claude-3-5-haiku-latest",
+                max_tokens=300,
+                temperature=0,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = msg.content[0].text.strip()
+            if text.startswith("```"):
+                text = re.sub(r"^```(?:json)?|```$", "", text, flags=re.MULTILINE).strip()
+            return json.loads(text)
+        except Exception:
+            pass
+
+    return None
+
+
+def llm_fill(question: str, plan: QueryPlan, missing: list[str]) -> QueryPlan:
+    prompt = f"""Fill or correct QueryPlan slots as JSON for an engineering intelligence warehouse.
 Question: {question}
 Current plan: {json.dumps(plan.to_dict())}
-Missing slots: {missing}
+Slots needing resolution: {missing}
 Valid companies: {COMPANIES}
-Valid source_types: job, blog, repo_activity
-Valid ops: count, list, rank, compare, timeline, refuse
-Never invent numbers. Return JSON only."""
-        msg = client.messages.create(
-            model="claude-3-5-haiku-latest",
-            max_tokens=300,
-            temperature=0,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = msg.content[0].text.strip()
-        if text.startswith("```"):
-            text = re.sub(r"^```(?:json)?|```$", "", text, flags=re.MULTILINE).strip()
-        data = json.loads(text)
+Valid source_types: ["job", "blog", "repo_activity"]
+Valid ops: ["count", "list", "rank", "compare", "timeline", "refuse"]
+Rules:
+- If out of corpus scope (revenue, stock prices, CEO names, off-topic), set op to "refuse" and refuse_reason.
+- If searching for a tech/skill keyword (e.g. rust, golang, elixir), set keyword to that term.
+- Never invent numbers. Return JSON only."""
+    data = _call_llm_json(prompt)
+    if not data:
+        return plan
+    try:
         merged = {**plan.to_dict(), **data}
         validated = QueryPlanModel.model_validate(merged)
         return QueryPlan(**validated.model_dump())
-    except Exception:
+    except ValidationError:
         return plan
 
 
 def build_plan(question: str) -> QueryPlan:
     plan = rule_fill(question)
     missing = _missing_required(plan)
+    unparsed = _unparsed_words(question, plan)
+    if unparsed:
+        missing.append("keyword")
+
     if missing:
         plan = llm_fill(question, plan, missing)
     return plan

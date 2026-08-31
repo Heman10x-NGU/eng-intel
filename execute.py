@@ -63,7 +63,9 @@ def _date_clause(since: date | None, until: date | None) -> tuple[str, list[str]
 def _word_boundary(text: str | None, keyword: str) -> bool:
     if not text:
         return False
-    return bool(re.search(rf"\b{re.escape(keyword)}\b", text, re.IGNORECASE))
+    escaped = re.escape(keyword)
+    pat = rf"(?:\b|^){escaped}(?:\b|$|\s|[^\w])"
+    return bool(re.search(pat, text, re.IGNORECASE))
 
 
 SEARCH_MODE = "lexical"  # vector path intentionally unimplemented
@@ -223,40 +225,61 @@ def _extractive_compare(chunks: list[dict]) -> str:
 def _synthesize_compare(chunks: list[dict]) -> str:
     if not chunks:
         return "No retrieved content to compare."
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        return _extractive_compare(chunks)
-    try:
-        import anthropic
-    except ImportError:
-        return _extractive_compare(chunks)
 
-    try:
-        client = anthropic.Anthropic(api_key=api_key)
-        payload = [
-            {
-                "i": i,
-                "company": c["company"],
-                "title": c["title"],
-                "text": (c.get("body_text") or "")[:800],
-            }
-            for i, c in enumerate(chunks)
-        ]
-        prompt = (
-            "Compare how the companies discuss database products using ONLY these chunks. "
-            "Cite sources as [index]. Do not invent URLs or numbers.\n\n"
-            + json.dumps(payload)
-        )
-        msg = client.messages.create(
-            model="claude-3-5-haiku-latest",
-            max_tokens=500,
-            temperature=0,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return msg.content[0].text
-    except Exception:
-        fallback = _extractive_compare(chunks)
-        return f"{fallback}\n\n(Model synthesis unavailable; extractive comparison shown above.)"
+    payload = [
+        {
+            "i": i,
+            "company": c["company"],
+            "title": c["title"],
+            "text": (c.get("body_text") or "")[:800],
+        }
+        for i, c in enumerate(chunks)
+    ]
+    prompt = (
+        "Compare how the companies discuss database products using ONLY these chunks. "
+        "Cite sources as [index]. Do not invent URLs or numbers.\n\n"
+        + json.dumps(payload)
+    )
+
+    # 1. DeepSeek
+    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+    if deepseek_key:
+        try:
+            import httpx
+
+            resp = httpx.post(
+                "https://api.deepseek.com/chat/completions",
+                headers={"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0,
+                },
+                timeout=12.0,
+            )
+            if resp.status_code == 200:
+                return resp.json()["choices"][0]["message"]["content"].strip()
+        except Exception:
+            pass
+
+    # 2. Anthropic
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    if anthropic_key:
+        try:
+            import anthropic
+
+            client = anthropic.Anthropic(api_key=anthropic_key)
+            msg = client.messages.create(
+                model="claude-3-5-haiku-latest",
+                max_tokens=500,
+                temperature=0,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return msg.content[0].text
+        except Exception:
+            pass
+
+    return _extractive_compare(chunks)
 
 
 def _op_count(rows: list[sqlite3.Row], plan: QueryPlan) -> tuple[str, list, dict[str, Any], str]:
@@ -415,15 +438,19 @@ def execute(conn: sqlite3.Connection, plan: QueryPlan) -> ExecuteResult:
                     "JOIN documents_fts ON documents_fts.doc_id = d.id "
                     "WHERE documents_fts MATCH ?"
                 )
-                fts_params: list[Any] = [plan.keyword]
+                fts_term = f'"{plan.keyword}"' if any(c in plan.keyword for c in '#+-*^":.') else plan.keyword
+                fts_params: list[Any] = [fts_term]
                 if plan.source_types:
                     fts_sql += f" AND d.source_type IN ({','.join('?'*len(plan.source_types))})"
                     fts_params.extend(plan.source_types)
                 if plan.companies:
                     fts_sql += f" AND d.company IN ({','.join('?'*len(plan.companies))})"
                     fts_params.extend(plan.companies)
-                kw_rows = conn.execute(fts_sql, fts_params).fetchall()
-                rows = _filter_rows_keyword(kw_rows, plan.keyword)
+                try:
+                    kw_rows = conn.execute(fts_sql, fts_params).fetchall()
+                    rows = _filter_rows_keyword(kw_rows, plan.keyword)
+                except sqlite3.OperationalError:
+                    rows = _filter_rows_keyword(rows, plan.keyword)
             else:
                 rows = _filter_rows_keyword(rows, plan.keyword)
         else:

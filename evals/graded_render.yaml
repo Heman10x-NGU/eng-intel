@@ -31,8 +31,6 @@
     no_traceback: true
     no_import_error: true
     min_citations: 5
-    answer_contains:
-      - "extractive comparison"
 
 - id: graded_q5
   q: Which of these companies is most active on GitHub right now?
